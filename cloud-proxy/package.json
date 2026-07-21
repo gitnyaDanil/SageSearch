@@ -1,0 +1,17 @@
+{
+  "name": "sagesearch-cloud-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rate-limited Cloud Run interpretation proxy for SageSearch",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

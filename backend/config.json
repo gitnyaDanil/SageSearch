@@ -1,0 +1,27 @@
+{
+  "_comment": "SageSearch configuration. Edit this file to change connection settings.",
+  "lmStudio": {
+    "host": "localhost",
+    "port": 1234,
+    "notes": "Enable the LM Studio local server: open LM Studio → Developer tab (left sidebar) → toggle ON 'Enable Local Server'"
+  },
+  "provider": {
+    "mode": "local",
+    "local": {
+      "endpoint": "http://localhost:1234",
+      "model": null
+    },
+    "cloud": {
+      "proxyUrl": "https://YOUR-CLOUD-RUN-URL/interpret",
+      "notes": "Set this to your deployed Cloud Run /interpret endpoint. It receives only query, current date, and allowed search vocabulary."
+    }
+  },
+  "server": {
+    "port": 3001
+  },
+  "search": {
+    "maxResults": 50,
+    "maxDepth": 6,
+    "indexRefreshMinutes": 15
+  }
+}

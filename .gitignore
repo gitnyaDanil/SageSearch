@@ -1,0 +1,20 @@
+backend/data/
+backend/*.sqlite
+backend/*.sqlite-shm
+backend/*.sqlite-wal
+
+# Local dependencies and environment files
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Local editor and operating-system files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Release and submission artifacts
+*.zip
+dist/
+build/
