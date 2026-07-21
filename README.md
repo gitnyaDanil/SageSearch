@@ -160,8 +160,25 @@ Key decisions Codex helped shape:
   document-content indexing, previews, labels, and email search.
 
 The detailed principles and target architecture are in
-[`PRINCIPLES_AND_ARCHITECTURE.md`](PRINCIPLES_AND_ARCHITECTURE.md). Submission
-wording and demo narration are in [`CODEX_FEEDBACK.md`](CODEX_FEEDBACK.md).
+[`docs/PRINCIPLES_AND_ARCHITECTURE.md`](docs/PRINCIPLES_AND_ARCHITECTURE.md).
+Submission wording and demo narration are in
+[`docs/CODEX_FEEDBACK.md`](docs/CODEX_FEEDBACK.md).
+
+### SageSearch Cloud contribution
+
+Codex and ChatGPT helped design SageSearch Cloud as an optional service that
+understands a user's request without accessing their private files. For example,
+when a user asks, "Find my resume in Downloads folder," SageSearch Cloud can
+return simple search rules:
+
+- Search location: Downloads
+- File type: document
+- Filename keyword: resume
+
+SageSearch then uses those rules to search its local SQLite index. SageSearch
+Cloud does not receive local file names, folder paths, document contents, file
+metadata, or search results. It only helps interpret the typed request; the
+actual file search remains on the user's computer.
 
 ---
 

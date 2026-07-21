@@ -33,7 +33,7 @@ paths, search results, and document contents on the user's computer.
 - Designed the consumer default: SageSearch Cloud for zero-setup query
   understanding, with LM Studio/local AI as an advanced Settings option.
 - Documented the revised product and technical direction in
-  `PRINCIPLES_AND_ARCHITECTURE.md`.
+  `docs/PRINCIPLES_AND_ARCHITECTURE.md`.
 
 ## Key product, engineering, and design decisions
 
@@ -65,7 +65,7 @@ materials for this project.”
 
 ## README highlight
 
-Add a short section linking to `PRINCIPLES_AND_ARCHITECTURE.md` and summarize:
+Add a short section linking to `docs/PRINCIPLES_AND_ARCHITECTURE.md` and summarize:
 Codex supported product discovery, architecture decisions, privacy design,
 SQLite indexing priorities, and the Windows-first hackathon implementation
 plan.

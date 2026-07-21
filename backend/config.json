@@ -6,14 +6,14 @@
     "notes": "Enable the LM Studio local server: open LM Studio → Developer tab (left sidebar) → toggle ON 'Enable Local Server'"
   },
   "provider": {
-    "mode": "local",
+    "mode": "cloud",
     "local": {
       "endpoint": "http://localhost:1234",
       "model": null
     },
     "cloud": {
-      "proxyUrl": "https://YOUR-CLOUD-RUN-URL/interpret",
-      "notes": "Set this to your deployed Cloud Run /interpret endpoint. It receives only query, current date, and allowed search vocabulary."
+      "proxyUrl": "https://sagesearch-interpret-341129605804.us-west4.run.app/interpret",
+      "notes": "Cloud Run /interpret endpoint. It receives only query, current date, and allowed search vocabulary."
     }
   },
   "server": {
