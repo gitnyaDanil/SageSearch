@@ -143,12 +143,25 @@ overwrite the user's index. Delete the database file to rebuild the index from s
 
 ## Built with Codex and GPT-5.6
 
-Codex, powered by GPT-5.6, helped shape SageSearch into a simple, private file
-finder. Together, we designed **SageSearch Cloud** to understand the user's
-typed request while SageSearch searches the local SQLite index.
+SageSearch was developed with Codex, powered by GPT-5.6, as a product and
+engineering thought partner. Codex helped challenge the original local-model
+prototype, define a consumer-first Windows experience, and turn those decisions
+into a focused architecture.
 
-SageSearch Cloud receives only the search phrase. File names, folder paths,
-metadata, document contents, and search results stay on the user's computer.
+Together, we designed **SageSearch Cloud** around one clear boundary: AI
+understands the user's typed request and returns structured search filters,
+while SQLite searches the local file index. SageSearch Cloud receives only the
+search phrase; file names, folder paths, metadata, document contents, and
+search results remain on the user's computer.
+
+Key decisions Codex and GPT-5.6 helped shape:
+
+- Separate AI query interpretation from fast local file retrieval.
+- Keep private file data on-device, even when cloud interpretation is enabled.
+- Search immediately with supported clues and ask one targeted clarification
+  for vague, empty, overly broad, or unsupported requests.
+- Prioritize a Windows-first consumer experience while deferring broader scope
+  such as macOS, document-content search, and email search.
 
 Supporting documents:
 
