@@ -143,42 +143,17 @@ overwrite the user's index. Delete the database file to rebuild the index from s
 
 ## Built with Codex and GPT-5.6
 
-SageSearch was developed with Codex, using GPT-5.6 as a product and engineering
-thought partner. Codex accelerated the work by challenging the original
-local-model prototype, helping define a consumer-first Windows experience, and
-turning the resulting decisions into a focused architecture.
+Codex, powered by GPT-5.6, helped shape SageSearch into a simple, private file
+finder. Together, we designed **SageSearch Cloud** to understand the user's
+typed request while SageSearch searches the local SQLite index.
 
-Key decisions Codex helped shape:
+SageSearch Cloud receives only the search phrase. File names, folder paths,
+metadata, document contents, and search results stay on the user's computer.
 
-- Separate AI query interpretation from local retrieval: AI returns structured
-  filters while SQLite searches the user's local index.
-- Keep filenames, paths, search results, and document contents local; in cloud
-  mode, only the typed search phrase is sent for interpretation.
-- Search immediately with supported clues and ask one targeted clarification
-  only for empty, overly broad, or unsupported requests.
-- Prioritize a Windows-first Electron hackathon build and defer macOS,
-  document-content indexing, previews, labels, and email search.
+Supporting documents:
 
-The detailed principles and target architecture are in
-[`docs/PRINCIPLES_AND_ARCHITECTURE.md`](docs/PRINCIPLES_AND_ARCHITECTURE.md).
-Submission wording and demo narration are in
-[`docs/CODEX_FEEDBACK.md`](docs/CODEX_FEEDBACK.md).
-
-### SageSearch Cloud contribution
-
-Codex and ChatGPT helped design SageSearch Cloud as an optional service that
-understands a user's request without accessing their private files. For example,
-when a user asks, "Find my resume in Downloads folder," SageSearch Cloud can
-return simple search rules:
-
-- Search location: Downloads
-- File type: document
-- Filename keyword: resume
-
-SageSearch then uses those rules to search its local SQLite index. SageSearch
-Cloud does not receive local file names, folder paths, document contents, file
-metadata, or search results. It only helps interpret the typed request; the
-actual file search remains on the user's computer.
+- [Principles and architecture](https://github.com/gitnyaDanil/SageSearch/blob/main/docs/PRINCIPLES_AND_ARCHITECTURE.md)
+- [Codex feedback and demo narration](https://github.com/gitnyaDanil/SageSearch/blob/main/docs/CODEX_FEEDBACK.md)
 
 ---
 
