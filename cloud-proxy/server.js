@@ -47,6 +47,9 @@ async function interpretWithDeepSeek({ query, today, apiKey, model, fetchImpl = 
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
+      // SageSearch needs a quick, single structured interpretation. V4 enables
+      // thinking by default, which increases latency without helping this task.
+      thinking: { type: 'disabled' },
       temperature: 0,
       max_tokens: 500,
       response_format: { type: 'json_object' },
@@ -62,7 +65,7 @@ async function interpretWithDeepSeek({ query, today, apiKey, model, fetchImpl = 
   return validateInterpretation(parseJson(body?.choices?.[0]?.message?.content));
 }
 
-function createApp({ apiKey, model = 'deepseek-chat', rateLimitMax = 20, rateLimitWindowMs = 60_000, fetchImpl } = {}) {
+function createApp({ apiKey, model = 'deepseek-v4-flash', rateLimitMax = 20, rateLimitWindowMs = 60_000, fetchImpl } = {}) {
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY must be configured.');
   const app = express();
   app.set('trust proxy', 1);
@@ -93,7 +96,7 @@ if (require.main === module) {
   const env = process.env;
   const app = createApp({
     apiKey: requiredEnvironment('DEEPSEEK_API_KEY', env),
-    model: env.DEEPSEEK_MODEL || 'deepseek-chat',
+    model: env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
     rateLimitMax: Number(env.INTERPRET_RATE_LIMIT_MAX || 20),
     rateLimitWindowMs: Number(env.INTERPRET_RATE_LIMIT_WINDOW_MS || 60_000),
   });

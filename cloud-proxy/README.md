@@ -8,7 +8,7 @@ never receives local file metadata, paths, results, or document content.
 
 - `DEEPSEEK_API_KEY`: mounted from Secret Manager, never placed in source code
 
-Optional variables are `DEEPSEEK_MODEL` (defaults to `deepseek-chat`),
+Optional variables are `DEEPSEEK_MODEL` (defaults to `deepseek-v4-flash`),
 `INTERPRET_RATE_LIMIT_MAX` (defaults to `20`), and
 `INTERPRET_RATE_LIMIT_WINDOW_MS` (defaults to `60000`). The limiter is
 in-memory and per Cloud Run instance, so configure Cloud Armor/API Gateway or

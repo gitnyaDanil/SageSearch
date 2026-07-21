@@ -32,6 +32,7 @@ test('returns only a normalized structured interpretation and rate limits caller
     assert.equal(request.headers.Authorization, 'Bearer deepseek-key');
     const body = JSON.parse(request.body);
     assert.equal(body.messages[1].content, 'screenshots from yesterday');
+    assert.deepEqual(body.thinking, { type: 'disabled' });
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ filters: { fileType: 'image', filenameKeywords: ['screenshots'], sql: 'DROP TABLE files' }, unsupportedClues: ['sender Ana'], clarifyingQuestion: 'Which folder?', leaked: true }) } }] }), { status: 200 });
   };
   await withServer({ apiKey: 'deepseek-key', fetchImpl, rateLimitMax: 1, rateLimitWindowMs: 60_000 }, async (baseUrl) => {

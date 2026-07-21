@@ -43,7 +43,7 @@ gcloud run deploy $Service `
   --max-instances 2 `
   --concurrency 10 `
   --set-secrets 'DEEPSEEK_API_KEY=deepseek-api-key:latest' `
-  --set-env-vars 'INTERPRET_RATE_LIMIT_MAX=20'
+  --set-env-vars 'DEEPSEEK_MODEL=deepseek-v4-flash,INTERPRET_RATE_LIMIT_MAX=20'
 if ($LASTEXITCODE -ne 0) { throw 'Cloud Run deployment failed.' }
 
 $serviceUrl = (gcloud run services describe $Service --project $Project --region $Region --format 'value(status.url)').Trim()
