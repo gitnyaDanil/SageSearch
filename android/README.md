@@ -58,4 +58,4 @@ heuristic fixtures so Windows and Android can be compared against the same examp
 - Kotlin / Compose compiler plugin 2.3.21
 - Compose BOM 2026.06.00
 - ML Kit bundled text recognition 16.0.1
-- Minimum API 23; compile/target API 37
+- Minimum API 23; compile/target API 36
