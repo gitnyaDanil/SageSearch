@@ -1,5 +1,11 @@
 const { ALLOWED_VOCABULARY, validateInterpretation } = require('./schema');
 
+const LOCAL_ALLOWED_VOCABULARY = Object.freeze({
+  ...ALLOWED_VOCABULARY,
+  contentKinds: ['receipt', 'picture', 'mixed', 'unknown'],
+  fields: [...ALLOWED_VOCABULARY.fields, 'contentKinds', 'ocrTerms'],
+});
+
 function interpretationPrompt(today) {
   return `You convert a file-search request into JSON filters. Today is ${today}.
 Return JSON only, with exactly this shape:
@@ -8,6 +14,8 @@ Return JSON only, with exactly this shape:
     "fileType": "document|image|video|audio|other|null",
     "extensions": ["extensions from the allowed vocabulary, or an empty array"],
     "filenameKeywords": ["words that appear in a filename"],
+    "contentKinds": ["receipt|picture|mixed|unknown, or an empty array"],
+    "ocrTerms": ["words visibly printed inside an image, or an empty array"],
     "locationLabel": "configured location label or null",
     "dateField": "created|modified",
     "dateAfter": "YYYY-MM-DD or null",
@@ -16,7 +24,7 @@ Return JSON only, with exactly this shape:
   "unsupportedClues": ["clues not present in file metadata"],
   "clarifyingQuestion": "one question or null"
 }
-Only infer supported metadata filters. Sender, document contents, and file-open history are unsupported clues. For relative dates, calculate dates from today. File-kind words are filters, not filename words: use extensions for presentation/slides/PowerPoint/ppt, spreadsheet/Excel, PDF, and Word requests; use fileType for photo/image, video/movie, and audio/music requests. Use filenameKeywords only when the user explicitly says named, called, filename, or means words in the actual filename. Treat an unqualified "screenshot" request as an image type, not a filename keyword. Ask at most one question, and only if it would materially improve a search. Allowed vocabulary: ${JSON.stringify(ALLOWED_VOCABULARY)}.`;
+Only infer supported filters. Sender, non-image document contents, and file-open history are unsupported clues. Receipt OCR and visible text inside analyzed images are supported: use contentKinds for receipt requests and ocrTerms for words expected inside the image. For relative dates, calculate dates from today. File-kind words are filters, not filename words: use extensions for presentation/slides/PowerPoint/ppt, spreadsheet/Excel, PDF, and Word requests; use fileType for photo/image, video/movie, and audio/music requests. Use filenameKeywords only when the user explicitly says named, called, filename, or means words in the actual filename. Treat an unqualified "screenshot" request as an image type, not a filename keyword. Ask at most one question, and only if it would materially improve a search. Allowed vocabulary: ${JSON.stringify(LOCAL_ALLOWED_VOCABULARY)}.`;
 }
 
 function parseJson(content) {
@@ -81,4 +89,4 @@ class LocalAIInterpretProvider {
   }
 }
 
-module.exports = { LocalAIInterpretProvider };
+module.exports = { LocalAIInterpretProvider, LOCAL_ALLOWED_VOCABULARY };

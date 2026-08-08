@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { DatabaseSync } = require('node:sqlite');
+const { ImageAnalysisQueue } = require('./image-analysis');
 
 const FILE_TYPES = {
   document: ['.pdf', '.doc', '.docx', '.docm', '.dot', '.dotx', '.xls', '.xlsx', '.xlsm', '.xlsb', '.ppt', '.pptx', '.pps', '.ppsx', '.pot', '.potx', '.txt', '.csv', '.rtf', '.odt', '.ods', '.odp', '.md'],
@@ -9,6 +10,7 @@ const FILE_TYPES = {
   video: ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ts', '.mts'],
   audio: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.opus', '.aiff'],
 };
+const IMAGE_CONTENT_KINDS = new Set(['receipt', 'picture', 'mixed', 'unknown']);
 
 function categoryForExtension(extension) {
   for (const [category, extensions] of Object.entries(FILE_TYPES)) {
@@ -48,20 +50,64 @@ function shouldSkip(entry) {
     entry.name === 'WindowsApps';
 }
 
+function contentFingerprint(stat) {
+  return `${stat.size}:${Math.trunc(stat.mtimeMs)}`;
+}
+
+function pathKey(filePath) {
+  const resolved = path.resolve(filePath);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function normalizeContentTerms(value) {
+  const items = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+  return [...new Set(items
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item && item.length <= 80))]
+    .slice(0, 8);
+}
+
+function ftsMatchQuery(terms) {
+  return terms.map((term) => `"${term.replace(/"/g, '""')}"`).join(' AND ');
+}
+
+function jsonOrNull(value) {
+  if (typeof value !== 'string' || !value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
 class SearchIndex {
-  constructor({ databasePath, maxDepth = 6, locations = defaultLocations() } = {}) {
+  constructor({
+    databasePath,
+    maxDepth = 6,
+    locations = defaultLocations(),
+    imageAnalysisProcessor = null,
+    imageAnalysisMaxAttempts = 3,
+    imageAnalysisVersion = 'unversioned',
+  } = {}) {
     const dataDir = path.dirname(databasePath || path.join(__dirname, '..', 'data', 'sagesearch.sqlite'));
     fs.mkdirSync(dataDir, { recursive: true });
     this.db = new DatabaseSync(databasePath || path.join(dataDir, 'sagesearch.sqlite'));
     this.maxDepth = maxDepth;
     this.defaults = locations;
+    this.imageAnalysisVersion = typeof imageAnalysisVersion === 'string' && imageAnalysisVersion.trim()
+      ? imageAnalysisVersion.trim().slice(0, 100)
+      : 'unversioned';
     this.indexing = new Set();
     this.setup();
+    this.imageAnalysis = new ImageAnalysisQueue({
+      db: this.db,
+      processor: imageAnalysisProcessor,
+      maxAttempts: imageAnalysisMaxAttempts,
+    });
+    this.syncImageAnalysisJobs();
   }
 
   setup() {
     this.db.exec(`
       PRAGMA journal_mode = WAL;
+      PRAGMA foreign_keys = ON;
       CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS locations (
         id INTEGER PRIMARY KEY,
@@ -82,13 +128,19 @@ class SearchIndex {
         category TEXT NOT NULL,
         size_bytes INTEGER NOT NULL,
         created_iso TEXT NOT NULL,
-        modified_iso TEXT NOT NULL
+        modified_iso TEXT NOT NULL,
+        content_fingerprint TEXT
       );
       CREATE INDEX IF NOT EXISTS files_location_idx ON files(location_id);
       CREATE INDEX IF NOT EXISTS files_name_idx ON files(name COLLATE NOCASE);
       CREATE INDEX IF NOT EXISTS files_modified_idx ON files(modified_iso);
       CREATE INDEX IF NOT EXISTS files_created_idx ON files(created_iso);
     `);
+
+    const fileColumns = new Set(this.db.prepare('PRAGMA table_info(files)').all().map((column) => column.name));
+    if (!fileColumns.has('content_fingerprint')) {
+      this.db.exec('ALTER TABLE files ADD COLUMN content_fingerprint TEXT');
+    }
 
     const initialized = this.db.prepare("SELECT value FROM app_meta WHERE key = 'locations_initialized'").get();
     if (!initialized) {
@@ -148,6 +200,24 @@ class SearchIndex {
     return true;
   }
 
+  syncImageAnalysisJobs(locationId = null) {
+    const images = locationId == null
+      ? this.db.prepare(`
+          SELECT id, content_fingerprint, size_bytes, modified_iso
+          FROM files WHERE category = 'image'
+        `).all()
+      : this.db.prepare(`
+          SELECT id, content_fingerprint, size_bytes, modified_iso
+          FROM files WHERE category = 'image' AND location_id = ?
+        `).all(locationId);
+
+    this.imageAnalysis.enqueueMany(images.map((image) => {
+      const fileFingerprint = image.content_fingerprint || `${image.size_bytes}:${Date.parse(image.modified_iso)}`;
+      const fingerprint = `${fileFingerprint}|analysis:${this.imageAnalysisVersion}`;
+      return { fileId: image.id, contentFingerprint: fingerprint };
+    }));
+  }
+
   locationById(id) {
     const location = this.db.prepare('SELECT * FROM locations WHERE id = ?').get(id);
     return location && { ...location, is_default: Boolean(location.is_default), exists: fs.existsSync(location.path) };
@@ -192,6 +262,7 @@ class SearchIndex {
               name: entry.name, fullPath, folder: path.dirname(fullPath), extension,
               category: categoryForExtension(extension), size: stat.size,
               created: stat.birthtime.toISOString(), modified: stat.mtime.toISOString(),
+              fingerprint: contentFingerprint(stat),
             });
           } catch { /* File was removed or is inaccessible. */ }
         }
@@ -202,14 +273,47 @@ class SearchIndex {
     const replace = (files) => {
       this.db.exec('BEGIN');
       try {
-      this.db.prepare('DELETE FROM files WHERE location_id = ?').run(id);
-      const insert = this.db.prepare(`
-        INSERT INTO files (location_id, name, full_path, folder, extension, category, size_bytes, created_iso, modified_iso)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (const file of files) insert.run(id, file.name, file.fullPath, file.folder, file.extension, file.category, file.size, file.created, file.modified);
-      this.db.prepare("UPDATE locations SET status = 'ready', indexed_at = ?, file_count = ? WHERE id = ?")
-        .run(new Date().toISOString(), files.length, id);
+        const existing = new Map(this.db.prepare(`
+          SELECT id, full_path FROM files WHERE location_id = ?
+        `).all(id).map((file) => [pathKey(file.full_path), file]));
+        const seen = new Set();
+        const insert = this.db.prepare(`
+          INSERT INTO files (
+            location_id, name, full_path, folder, extension, category, size_bytes,
+            created_iso, modified_iso, content_fingerprint
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const update = this.db.prepare(`
+          UPDATE files SET
+            name = ?, full_path = ?, folder = ?, extension = ?, category = ?,
+            size_bytes = ?, created_iso = ?, modified_iso = ?, content_fingerprint = ?
+          WHERE id = ?
+        `);
+
+        for (const file of files) {
+          const key = pathKey(file.fullPath);
+          seen.add(key);
+          const prior = existing.get(key);
+          if (prior) {
+            update.run(
+              file.name, file.fullPath, file.folder, file.extension, file.category,
+              file.size, file.created, file.modified, file.fingerprint, prior.id,
+            );
+          } else {
+            insert.run(
+              id, file.name, file.fullPath, file.folder, file.extension, file.category,
+              file.size, file.created, file.modified, file.fingerprint,
+            );
+          }
+        }
+
+        const remove = this.db.prepare('DELETE FROM files WHERE id = ?');
+        for (const [key, prior] of existing) {
+          if (!seen.has(key)) remove.run(prior.id);
+        }
+
+        this.db.prepare("UPDATE locations SET status = 'ready', indexed_at = ?, file_count = ? WHERE id = ?")
+          .run(new Date().toISOString(), files.length, id);
         this.db.exec('COMMIT');
       } catch (error) {
         this.db.exec('ROLLBACK');
@@ -217,9 +321,22 @@ class SearchIndex {
       }
     };
     replace(rows);
+    this.syncImageAnalysisJobs(id);
   }
 
-  search({ folder, file_type, extensions, keyword, filename_keywords, date_after, date_before, date_field = 'modified', limit = 30 } = {}) {
+  search({
+    folder,
+    file_type,
+    extensions,
+    keyword,
+    filename_keywords,
+    content_kinds,
+    ocr_terms,
+    date_after,
+    date_before,
+    date_field = 'modified',
+    limit = 30,
+  } = {}) {
     this.refreshLocationAvailability();
     const field = date_field === 'created' ? 'created_iso' : 'modified_iso';
     const where = [];
@@ -242,6 +359,18 @@ class SearchIndex {
       where.push("LOWER(f.name) LIKE ? ESCAPE '\\'");
       values.push(`%${item.trim().toLowerCase().replace(/[\\%_]/g, '\\$&')}%`);
     }
+    const contentKinds = [...new Set((Array.isArray(content_kinds) ? content_kinds : [content_kinds])
+      .filter((kind) => IMAGE_CONTENT_KINDS.has(kind)))]
+      .slice(0, 4);
+    if (contentKinds.length) {
+      where.push(`ia.content_kind IN (${contentKinds.map(() => '?').join(', ')})`);
+      values.push(...contentKinds);
+    }
+    const ocrTerms = normalizeContentTerms(ocr_terms);
+    if (ocrTerms.length) {
+      where.push('image_fts MATCH ?');
+      values.push(ftsMatchQuery(ocrTerms));
+    }
     if (date_after && !Number.isNaN(Date.parse(date_after))) { where.push(`f.${field} >= ?`); values.push(new Date(date_after).toISOString()); }
     if (date_before && !Number.isNaN(Date.parse(date_before))) {
       where.push(`f.${field} <= ?`);
@@ -254,10 +383,13 @@ class SearchIndex {
     }
     const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 30, 1), 200);
     const query = `
-      SELECT f.*, l.name AS source_location, l.path AS source_path, l.status AS location_status
+      SELECT f.*, l.name AS source_location, l.path AS source_path, l.status AS location_status,
+             ia.content_kind, ia.ocr_text, ia.ocr_language, ia.receipt_confidence, ia.receipt_json
       FROM files f JOIN locations l ON l.id = f.location_id
+      LEFT JOIN image_analysis ia ON ia.file_id = f.id
+      ${ocrTerms.length ? 'JOIN image_fts ON image_fts.rowid = f.id' : ''}
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY f.${field} DESC LIMIT ?
+      ORDER BY ${ocrTerms.length ? 'bm25(image_fts) ASC,' : ''} f.${field} DESC LIMIT ?
     `;
     const result = this.db.prepare(query).all(...values, safeLimit);
     return result.map((file) => ({
@@ -266,12 +398,38 @@ class SearchIndex {
       created_iso: file.created_iso, created_readable: readableDate(file.created_iso),
       modified_iso: file.modified_iso, modified_readable: readableDate(file.modified_iso),
       source_location: file.source_location,
+      image_content_kind: file.content_kind || null,
+      ocr_language: file.ocr_language || null,
+      ocr_snippet: file.ocr_text ? String(file.ocr_text).replace(/\s+/g, ' ').trim().slice(0, 240) : null,
+      receipt_confidence: file.receipt_confidence ?? null,
+      receipt: jsonOrNull(file.receipt_json),
       available: file.location_status !== 'disconnected',
       availability: file.location_status === 'disconnected' ? 'unavailable' : 'available',
     }));
   }
 
-  close() { this.db.close(); }
+  close() {
+    this.imageAnalysis.stop();
+    this.db.close();
+  }
+
+  prioritizeImageAnalysis(requestedPath) {
+    if (typeof requestedPath !== 'string' || !requestedPath.trim()) return null;
+    const resolved = path.resolve(requestedPath.trim());
+    const file = this.db.prepare(`
+      SELECT id, category, content_fingerprint, size_bytes, modified_iso
+      FROM files WHERE full_path = ? COLLATE NOCASE LIMIT 1
+    `).get(resolved);
+    if (!file || file.category !== 'image') return null;
+    const fileFingerprint = file.content_fingerprint || `${file.size_bytes}:${Date.parse(file.modified_iso)}`;
+    const fingerprint = `${fileFingerprint}|analysis:${this.imageAnalysisVersion}`;
+    this.imageAnalysis.enqueue({ fileId: file.id, contentFingerprint: fingerprint, priority: 100 });
+    this.imageAnalysis.prioritize(file.id, 100);
+    return this.db.prepare(`
+      SELECT file_id, state, priority, error_code, error_message
+      FROM image_analysis_jobs WHERE file_id = ?
+    `).get(file.id);
+  }
 
   status() {
     const locations = this.locations();
@@ -280,6 +438,10 @@ class SearchIndex {
       totalLocations: locations.length,
       readyLocations: locations.filter((location) => location.status === 'ready').length,
       indexedFiles: locations.reduce((total, location) => total + (location.file_count || 0), 0),
+      imageAnalysis: {
+        ...this.imageAnalysis.status(),
+        pipelineVersion: this.imageAnalysisVersion,
+      },
     };
   }
 }
@@ -302,8 +464,13 @@ function addSearchLocation(params) { return requireIndex().addLocation(params); 
 function removeSearchLocation(id) { return requireIndex().removeLocation(id); }
 function reindexLocation(id) { const index = requireIndex(); if (!index.locationById(id)) return false; index.scheduleIndex(id); return true; }
 function getSearchIndexStatus() { return requireIndex().status(); }
+function getImageAnalysisStatus() { return requireIndex().status().imageAnalysis; }
+function retryImageAnalysisErrors(fileId = null) { return requireIndex().imageAnalysis.retryErrors(fileId); }
+function prioritizeImageAnalysis(filePath) { return requireIndex().prioritizeImageAnalysis(filePath); }
 
 module.exports = {
   SearchIndex, FILE_TYPES, initializeSearchIndex, searchDocuments, listSearchFolders,
   addSearchLocation, removeSearchLocation, reindexLocation, getSearchIndexStatus,
+  getImageAnalysisStatus, retryImageAnalysisErrors,
+  prioritizeImageAnalysis,
 };

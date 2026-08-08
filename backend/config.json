@@ -23,5 +23,14 @@
     "maxResults": 50,
     "maxDepth": 6,
     "indexRefreshMinutes": 15
+  },
+  "imageAnalysis": {
+    "enabled": true,
+    "provider": "windows-media-ocr",
+    "pipelineVersion": "windows-ocr-receipt-v1",
+    "maxAttempts": 3,
+    "timeoutMs": 30000,
+    "maxFileBytes": 26214400,
+    "notes": "Windows.Media.Ocr runs locally. Initial OCR formats are JPG, PNG, BMP, and TIFF."
   }
 }

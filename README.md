@@ -25,6 +25,8 @@ That's it. 🎉
 | *"Audio files named recording"* | Keyword + type combined |
 | *"Excel files from this month"* | Document type + date range |
 | *"Show presentations in SSD HP"* | PowerPoint-compatible file formats in that location |
+| *"Find receipts containing coffee"* | Searches text recognized locally inside receipt images |
+| *"Receipts from Toko ABC"* | Searches analyzed receipt text and receipt candidates |
 
 ---
 
@@ -46,10 +48,13 @@ AI writes a summary
 File cards appear — click "Show in Explorer"
 ```
 
-**Your files are never read, uploaded, or shared.**
-In local mode, nothing leaves your device. In cloud mode, only the typed search
-phrase, current date, and a fixed search vocabulary are sent for interpretation.
-File names, paths, metadata, and results remain local in both modes.
+**Your file index, image analysis, and results stay on your device by default.**
+When local image analysis is enabled, SageSearch reads supported image pixels
+with Windows OCR and stores derived OCR text and receipt candidates in the local
+SQLite index. It does not modify the original image. In cloud query mode, only
+the typed search phrase, current date, and a fixed search vocabulary are sent
+for interpretation. File names, paths, image pixels, OCR text, metadata, and
+results remain local. Optional cloud image analysis is not implemented yet.
 
 ---
 
@@ -83,6 +88,47 @@ marked **Unavailable** until the drive reconnects.
 | Image    | .jpg .png .gif .bmp .webp .heic … |
 | Video    | .mp4 .mkv .avi .mov .wmv .webm … |
 | Audio    | .mp3 .wav .flac .aac .ogg .m4a … |
+
+---
+
+Initial local OCR supports JPG/JPEG, PNG, BMP, and TIFF images. Other image
+formats remain searchable by metadata but are marked as unsupported for OCR.
+
+## Test Receipt Search
+
+1. Put a clear JPG or PNG receipt in an indexed folder such as Pictures or
+   Downloads.
+2. Start SageSearch and wait for the **Analyzing image text locally** notice, or
+   find the image by filename and click its sparkle button to move it to the
+   front of the analysis queue.
+3. Search for visible text, for example `Find receipts containing coffee` or
+   `Receipts from Toko ABC`.
+4. Matching cards show the OCR snippet, receipt badge, and extracted candidates
+   such as total, currency, or date when detected.
+
+Windows OCR uses recognition languages installed with Windows. If results use
+the wrong language, install the corresponding Windows language pack and retry
+the failed analysis or reindex the location.
+
+`imageAnalysis.pipelineVersion` identifies the derived OCR/receipt format. Bump
+it when the processor or receipt rules change incompatibly; SageSearch preserves
+the original images, clears only stale derived analysis, and queues them again.
+
+---
+
+## Test the Android Prototype
+
+The first Android vertical slice is in `android/`. It uses Android's Photo Picker
+to select one receipt or photo, runs bundled ML Kit OCR locally, classifies the
+image, and displays visible text plus receipt field candidates. It does not need
+full gallery permission and does not upload the selected image.
+
+Open `android/` in Android Studio, let Gradle sync, run the `app` configuration on
+an Android 6.0 (API 23) or newer device/emulator, and tap **Choose an image**.
+Detailed setup and current scope are in `android/README.md`.
+
+For a short Windows/Android feedback session, follow
+`docs/IMAGE_SEARCH_TEST_CHECKLIST.md`.
 
 ---
 
@@ -135,9 +181,10 @@ Edit `backend/config.json` to change the LM Studio port if needed:
 }
 ```
 
-The development index is stored locally at `backend/data/sagesearch.sqlite` and contains only
-file metadata: filename, path, extension/type, size, created date, modified date,
-and source location. Electron should launch the backend with `SAGESEARCH_DATA_DIR`
+The development index is stored locally at `backend/data/sagesearch.sqlite`. It
+contains file metadata and, when image analysis is enabled, derived OCR text,
+receipt candidates, analysis state, and retry jobs. It does not store a second
+copy of the original image. Electron should launch the backend with `SAGESEARCH_DATA_DIR`
 set to Electron's per-user `app.getPath('userData')`, so installed updates never
 overwrite the user's index. Delete the database file to rebuild the index from scratch.
 

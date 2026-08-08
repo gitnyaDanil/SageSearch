@@ -777,6 +777,37 @@ html, body {
 
 .ext-badge.cat-document { background: rgba(79, 130, 245, 0.15); color: var(--cat-document); }
 .ext-badge.cat-image    { background: rgba(245, 131, 79, 0.15); color: var(--cat-image);    }
+
+.content-kind-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.12);
+  color: #7dd3fc;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.file-content-match {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.file-content-match svg { width: 13px; height: 13px; flex: 0 0 auto; }
+
+.receipt-summary {
+  margin-top: 4px;
+  color: #f5c84f;
+  font-size: 11px;
+}
 .ext-badge.cat-video    { background: rgba(155, 95, 245, 0.15); color: var(--cat-video);    }
 .ext-badge.cat-audio    { background: rgba(63, 201, 123, 0.15); color: var(--cat-audio);    }
 .ext-badge.cat-other    { background: rgba(138, 143, 168, 0.15); color: var(--cat-other);   }
@@ -955,6 +986,36 @@ html, body {
   border-radius: 4px;
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.image-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 7px 11px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.image-retry-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+}
+
+.image-retry-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.image-retry-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */

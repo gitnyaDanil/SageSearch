@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateInterpretation, applyQueryDefaults } = require('../interpret-search/schema');
 const { SageSearchCloudInterpretProvider } = require('../interpret-search/sage-cloud');
-const { LocalAIInterpretProvider } = require('../interpret-search/local-ai');
+const { LocalAIInterpretProvider, LOCAL_ALLOWED_VOCABULARY } = require('../interpret-search/local-ai');
 
 test('interpretation validation drops unsupported and malformed filter fields', () => {
   const interpretation = validateInterpretation({
@@ -26,6 +26,8 @@ test('interpretation validation drops unsupported and malformed filter fields', 
       fileType: 'document',
       extensions: ['.pptx'],
       filenameKeywords: ['budget'],
+      contentKinds: [],
+      ocrTerms: [],
       locationLabel: 'Documents',
       dateField: 'created',
       dateAfter: '2026-07-01',
@@ -42,7 +44,7 @@ test('screenshot searches use the image category without assuming a filename', (
   });
   assert.deepEqual(applyQueryDefaults('Find screenshots in Downloads this month', interpretation).filters, {
     fileType: 'image', filenameKeywords: [], locationLabel: null,
-    extensions: [],
+    extensions: [], contentKinds: [], ocrTerms: [],
     dateField: 'modified', dateAfter: null, dateBefore: null,
   });
   assert.deepEqual(applyQueryDefaults('Find files named screenshot', interpretation).filters.filenameKeywords, ['screenshot']);
@@ -56,6 +58,8 @@ test('presentation words become PowerPoint extensions instead of filename text',
     fileType: 'document',
     extensions: ['.ppt', '.pptx', '.pps', '.ppsx', '.pot', '.potx', '.odp'],
     filenameKeywords: [],
+    contentKinds: [],
+    ocrTerms: [],
     locationLabel: null,
     dateField: 'modified',
     dateAfter: null,
@@ -116,15 +120,46 @@ test('local provider asks for a JSON interpretation and never exposes search too
     const provider = new LocalAIInterpretProvider({ endpoint: 'http://localhost:1234' });
     const result = await provider.interpret({ query: 'screenshots', today: '2026-07-20' });
     assert.equal(requests.length, 1);
-    assert.equal('tools' in requests[0], false);
-    assert.equal('tool_choice' in requests[0], false);
-    assert.equal(requests[0].messages[1].content, 'screenshots');
-    assert.deepEqual(result.filters, {
+      assert.equal('tools' in requests[0], false);
+      assert.equal('tool_choice' in requests[0], false);
+      assert.equal(requests[0].messages[1].content, 'screenshots');
+      assert.equal(LOCAL_ALLOWED_VOCABULARY.fields.includes('contentKinds'), true);
+      assert.equal(LOCAL_ALLOWED_VOCABULARY.fields.includes('ocrTerms'), true);
+      assert.match(requests[0].messages[0].content, /"contentKinds"/);
+      assert.match(requests[0].messages[0].content, /"ocrTerms"/);
+      assert.deepEqual(result.filters, {
       fileType: 'image', filenameKeywords: ['screenshot'], locationLabel: null,
-      extensions: [],
+      extensions: [], contentKinds: [], ocrTerms: [],
       dateField: 'modified', dateAfter: null, dateBefore: null,
     });
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('receipt and visible-text queries become local image-content filters', () => {
+  const base = validateInterpretation({
+    filters: { fileType: 'image' },
+    unsupportedClues: ['image contents'],
+  });
+  const receipt = applyQueryDefaults('Find receipts from Toko ABC containing coffee', base);
+  assert.equal(receipt.filters.fileType, 'image');
+  assert.deepEqual(receipt.filters.contentKinds, ['receipt']);
+  assert.deepEqual(receipt.filters.ocrTerms, ['coffee', 'Toko ABC']);
+  assert.deepEqual(receipt.unsupportedClues, []);
+
+  const visibleText = applyQueryDefaults('Pictures with visible text saying Bandung', base);
+  assert.deepEqual(visibleText.filters.ocrTerms, ['Bandung']);
+
+  const namedBase = validateInterpretation({
+    filters: { filenameKeywords: ['receipt-scan'] },
+  });
+  const namedReceipt = applyQueryDefaults(
+    'Find a receipt named receipt-scan containing coffee',
+    namedBase,
+  );
+  assert.equal(namedReceipt.filters.fileType, 'image');
+  assert.deepEqual(namedReceipt.filters.contentKinds, ['receipt']);
+  assert.deepEqual(namedReceipt.filters.filenameKeywords, ['receipt-scan']);
+  assert.deepEqual(namedReceipt.filters.ocrTerms, ['coffee']);
 });

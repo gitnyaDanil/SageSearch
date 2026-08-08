@@ -1,5 +1,6 @@
 const FILE_TYPES = new Set(['document', 'image', 'video', 'audio', 'other']);
 const DATE_FIELDS = new Set(['created', 'modified']);
+const CONTENT_KINDS = new Set(['receipt', 'picture', 'mixed', 'unknown']);
 const FILE_EXTENSIONS = Object.freeze([
   '.pdf', '.doc', '.docx', '.docm', '.dot', '.dotx', '.xls', '.xlsx', '.xlsm', '.xlsb', '.ppt', '.pptx', '.pps', '.ppsx', '.pot', '.potx', '.txt', '.csv', '.rtf', '.odt', '.ods', '.odp', '.md',
   '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif', '.heic', '.heif', '.raw',
@@ -86,6 +87,9 @@ function validateInterpretation(payload) {
       fileType: FILE_TYPES.has(fileType) ? fileType : null,
       extensions: normalizeExtensions(rawFilters.extensions || rawFilters.extensionFilters || rawFilters.extension_filters),
       filenameKeywords: normalizeKeywords(rawFilters.filenameKeywords || rawFilters.filename_keywords || rawFilters.keyword),
+      contentKinds: normalizeKeywords(rawFilters.contentKinds || rawFilters.content_kinds)
+        .filter((kind) => CONTENT_KINDS.has(kind)),
+      ocrTerms: normalizeKeywords(rawFilters.ocrTerms || rawFilters.ocr_terms || rawFilters.visibleText),
       locationLabel: stringOrNull(rawFilters.locationLabel || rawFilters.location_label || rawFilters.folder, 120),
       dateField: DATE_FIELDS.has(dateField) ? dateField : 'modified',
       dateAfter,
@@ -99,7 +103,8 @@ function validateInterpretation(payload) {
 function hasSupportedFilter(interpretation) {
   const filters = interpretation.filters;
   return Boolean(
-    filters.fileType || filters.extensions.length || filters.filenameKeywords.length || filters.locationLabel || filters.dateAfter || filters.dateBefore,
+    filters.fileType || filters.extensions.length || filters.filenameKeywords.length ||
+    filters.contentKinds.length || filters.ocrTerms.length || filters.locationLabel || filters.dateAfter || filters.dateBefore,
   );
 }
 
@@ -129,19 +134,45 @@ const FILE_KIND_ALIASES = Object.freeze([
 function applyQueryDefaults(query, interpretation) {
   if (typeof query !== 'string') return interpretation;
   const explicitFilename = /\b(?:named|called|filename|file name)\b/i.test(query);
-  if (explicitFilename) return interpretation;
+
+  const filters = { ...interpretation.filters };
+  const receiptQuery = /\breceipts?\b/i.test(query);
+  if (receiptQuery) {
+    filters.fileType = 'image';
+    filters.contentKinds = ['receipt'];
+    if (!explicitFilename) {
+      filters.filenameKeywords = filters.filenameKeywords.filter((keyword) => !/\breceipts?\b/i.test(keyword));
+    }
+  }
+
+  const contentMatch = query.match(/\b(?:visible\s+text\s+(?:saying|containing)|text\s+(?:saying|containing)|containing|contains|mentioning|mentions)\s+["“]?(.+?)["”]?(?=\s+(?:in|from|created|modified|last|this)\b|[?!.;,]|$)/i);
+  const merchantMatch = receiptQuery
+    ? query.match(/\breceipts?\s+from\s+["“]?(.+?)["”]?(?=\s+(?:in|created|modified|last|this|containing|with)\b|[?!.;,]|$)/i)
+    : null;
+  const inferredTerms = normalizeKeywords([
+    contentMatch?.[1],
+    merchantMatch && !/^(?:last|this|yesterday|today)\b/i.test(merchantMatch[1]) ? merchantMatch[1] : null,
+  ]);
+  if (inferredTerms.length) {
+    filters.fileType = 'image';
+    filters.ocrTerms = [...new Set([...filters.ocrTerms, ...inferredTerms])].slice(0, MAX_KEYWORDS);
+  }
 
   const matchingAlias = FILE_KIND_ALIASES.find((alias) => alias.pattern.test(query));
-  if (!matchingAlias) return interpretation;
+  if (matchingAlias) {
+    filters.fileType = matchingAlias.fileType;
+    filters.extensions = matchingAlias.extensions;
+    if (!explicitFilename) {
+      filters.filenameKeywords = filters.filenameKeywords
+        .filter((keyword) => !matchingAlias.pattern.test(keyword));
+    }
+  }
+
   return {
     ...interpretation,
-    filters: {
-      ...interpretation.filters,
-      fileType: matchingAlias.fileType,
-      extensions: matchingAlias.extensions,
-      filenameKeywords: interpretation.filters.filenameKeywords
-        .filter((keyword) => !matchingAlias.pattern.test(keyword)),
-    },
+    filters,
+    unsupportedClues: interpretation.unsupportedClues.filter((clue) =>
+      !/\b(?:image contents?|visible text|ocr|receipt contents?)\b/i.test(clue)),
   };
 }
 

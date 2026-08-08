@@ -5,8 +5,11 @@ const fs = require('fs');
 const {
   initializeSearchIndex, searchDocuments, listSearchFolders, addSearchLocation,
   removeSearchLocation, reindexLocation, getSearchIndexStatus,
+  getImageAnalysisStatus, retryImageAnalysisErrors,
+  prioritizeImageAnalysis,
 } = require('./tools/search');
 const { openInExplorer, openFile } = require('./tools/explorer');
+const { createWindowsOcrProcessor } = require('./tools/windows-ocr');
 const { createInterpretProvider } = require('./interpret-search');
 const { validateInterpretation, hasSupportedFilter, applyQueryDefaults } = require('./interpret-search/schema');
 
@@ -22,7 +25,19 @@ const MAX_SHOW_ALL_RESULTS = 200;
 // intentionally the existing backend/data location.
 const dataDirectory = process.env.SAGESEARCH_DATA_DIR || path.join(__dirname, 'data');
 const databasePath = process.env.SAGESEARCH_DATABASE_PATH || path.join(dataDirectory, 'sagesearch.sqlite');
-const searchIndex = initializeSearchIndex({ databasePath, maxDepth: cfg.search?.maxDepth });
+const imageAnalysisProcessor = cfg.imageAnalysis?.enabled && cfg.imageAnalysis?.provider === 'windows-media-ocr'
+  ? createWindowsOcrProcessor({
+      maxFileBytes: cfg.imageAnalysis?.maxFileBytes,
+      timeoutMs: cfg.imageAnalysis?.timeoutMs,
+    })
+  : null;
+const searchIndex = initializeSearchIndex({
+  databasePath,
+  maxDepth: cfg.search?.maxDepth,
+  imageAnalysisProcessor,
+  imageAnalysisMaxAttempts: cfg.imageAnalysis?.maxAttempts,
+  imageAnalysisVersion: cfg.imageAnalysis?.pipelineVersion,
+});
 const indexRefreshMs = Math.max(1, cfg.search?.indexRefreshMinutes || 15) * 60_000;
 setInterval(() => searchIndex.start(), indexRefreshMs).unref();
 
@@ -86,6 +101,8 @@ function filterSummary(filters) {
   if (filters.fileType) summary.push(filters.fileType);
   if (filters.extensions.length) summary.push(`formats: ${filters.extensions.join(', ')}`);
   if (filters.filenameKeywords.length) summary.push(`filename: ${filters.filenameKeywords.join(', ')}`);
+  if (filters.contentKinds.length) summary.push(`content: ${filters.contentKinds.join(', ')}`);
+  if (filters.ocrTerms.length) summary.push(`visible text: ${filters.ocrTerms.join(', ')}`);
   if (filters.locationLabel) summary.push(`in ${filters.locationLabel}`);
   if (filters.dateAfter || filters.dateBefore) {
     const range = [filters.dateAfter && `from ${filters.dateAfter}`, filters.dateBefore && `through ${filters.dateBefore}`]
@@ -98,7 +115,7 @@ function filterSummary(filters) {
 function contextualNote(interpretation) {
   const notes = [];
   if (interpretation.unsupportedClues.length) {
-    notes.push(`I cannot search ${interpretation.unsupportedClues.join(', ')} because only file metadata is indexed.`);
+    notes.push(`I cannot search ${interpretation.unsupportedClues.join(', ')} because that evidence is not indexed.`);
   }
   return notes.join(' ');
 }
@@ -108,6 +125,8 @@ function runLocalSearch(interpretation, limit = MAX_RESULTS + 1) {
     file_type: interpretation.filters.fileType,
     extensions: interpretation.filters.extensions,
     filename_keywords: interpretation.filters.filenameKeywords,
+    content_kinds: interpretation.filters.contentKinds,
+    ocr_terms: interpretation.filters.ocrTerms,
     folder: interpretation.filters.locationLabel,
     date_field: interpretation.filters.dateField,
     date_after: interpretation.filters.dateAfter,
@@ -265,6 +284,34 @@ app.post('/api/locations/:id/reindex', (req, res) => {
   const id = Number.parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || !reindexLocation(id)) return res.status(404).json({ error: 'Location not found.' });
   res.status(202).json({ status: 'indexing' });
+});
+
+app.get('/api/image-analysis/status', (_req, res) => {
+  res.json(getImageAnalysisStatus());
+});
+
+app.post('/api/image-analysis/retry', (req, res) => {
+  const requestedFileId = req.body?.fileId;
+  const fileId = requestedFileId == null ? null : Number(requestedFileId);
+  if (fileId != null && (!Number.isInteger(fileId) || fileId < 1)) {
+    return res.status(400).json({ error: 'fileId must be a positive integer when provided.' });
+  }
+  const retried = retryImageAnalysisErrors(fileId);
+  return res.status(202).json({ retried, status: getImageAnalysisStatus() });
+});
+
+app.post('/api/image-analysis/prioritize', (req, res) => {
+  const job = prioritizeImageAnalysis(req.body?.path);
+  if (!job) return res.status(404).json({ error: 'Only indexed image files can be analyzed.' });
+  if (job.state === 'permanent_error') {
+    return res.status(409).json({
+      error: job.error_message || 'This image cannot be analyzed by the configured local OCR processor.',
+      code: job.error_code || 'image_analysis_unavailable',
+      job,
+      status: getImageAnalysisStatus(),
+    });
+  }
+  return res.status(202).json({ job, status: getImageAnalysisStatus() });
 });
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));

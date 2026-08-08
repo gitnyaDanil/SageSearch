@@ -186,21 +186,54 @@ function removeOfflineBanner() {
 
 function updateIndexingNotice(index) {
   const existing = document.getElementById('indexing-notice');
-  if (!index?.indexing) {
+  const image = index?.imageAnalysis;
+  const imageRemaining = (image?.pending || 0) + (image?.analyzing || 0);
+  const retryableErrors = image?.retryableErrors || 0;
+  if (!index?.indexing && !imageRemaining && !retryableErrors) {
     if (existing) existing.remove();
     return;
   }
-  if (existing) return;
-
-  const notice = document.createElement('div');
+  const notice = existing || document.createElement('div');
   notice.id = 'indexing-notice';
   notice.className = 'offline-banner glass indexing-banner';
+  const title = index?.indexing
+    ? 'Indexing your search locations...'
+    : image?.processorConfigured
+      ? retryableErrors && !imageRemaining
+        ? 'Some image analyses need another try'
+        : 'Analyzing image text locally...'
+      : 'Image analysis is waiting for a processor';
+  const imageProgress = image
+    ? `${image.ready || 0} ready · ${imageRemaining} remaining${retryableErrors ? ` · ${retryableErrors} retryable` : ''}${image.permanentErrors ? ` · ${image.permanentErrors} skipped` : ''}`
+    : '';
   notice.innerHTML = `
-    <div class="offline-header"><i data-lucide="loader-circle"></i><strong>Indexing your search locations...</strong></div>
-    <p class="offline-note">First-time scans can briefly slow the local server. Searches use files already indexed and become more complete as indexing finishes.</p>
+    <div class="offline-header"><i data-lucide="loader-circle"></i><strong>${title}</strong></div>
+    <p class="offline-note">Search remains available while background work continues.${imageProgress ? ` Image analysis: ${imageProgress}.` : ''}</p>
+    ${retryableErrors ? '<button class="image-retry-btn" type="button"><i data-lucide="refresh-cw"></i> Retry failed image analysis</button>' : ''}
   `;
-  messagesEl.insertBefore(notice, messagesEl.firstChild);
+  const retryButton = notice.querySelector('.image-retry-btn');
+  if (retryButton) retryButton.addEventListener('click', () => retryImageAnalysis(retryButton));
+  if (!existing) messagesEl.insertBefore(notice, messagesEl.firstChild);
   lucide.createIcons({ nodes: [notice] });
+}
+
+async function retryImageAnalysis(button) {
+  button.disabled = true;
+  button.textContent = 'Queueing retries…';
+  try {
+    const response = await fetch(`${API}/image-analysis/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not retry image analysis.');
+    updateIndexingNotice({ imageAnalysis: data.status });
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Retry failed image analysis';
+    appendErrorMessage(error.message);
+  }
 }
 
 function setStatus(state, label) {
@@ -550,6 +583,12 @@ function buildFileCard(file, index) {
   const icon    = CATEGORY_ICON[cat] || 'file';
   const ext     = (file.extension || '').replace('.', '').toUpperCase() || 'FILE';
   const cardId  = `file-card-${index}-${Date.now()}`;
+  const receipt = file.receipt && typeof file.receipt === 'object' ? file.receipt : null;
+  const receiptParts = [
+    receipt?.merchantCandidate,
+    receipt?.total != null ? `${receipt.currency || ''} ${receipt.total}`.trim() : null,
+    receipt?.transactionDateText,
+  ].filter(Boolean);
 
   const card = document.createElement('div');
   card.className = `file-card${file.available === false ? ' file-unavailable' : ''}`;
@@ -567,6 +606,8 @@ function buildFileCard(file, index) {
       <div class="file-path" title="${escHtml(file.folder)}">
         ${escHtml(file.folder)}
       </div>
+      ${file.ocr_snippet ? `<div class="file-content-match" title="${escHtml(file.ocr_snippet)}"><i data-lucide="scan-text"></i>${escHtml(file.ocr_snippet)}</div>` : ''}
+      ${receiptParts.length ? `<div class="receipt-summary">${escHtml(receiptParts.join(' · '))}</div>` : ''}
       <div class="file-meta">
         <span class="file-meta-item">
           <i data-lucide="calendar"></i>
@@ -577,11 +618,15 @@ function buildFileCard(file, index) {
           ${escHtml(file.size_readable)}
         </span>
         <span class="ext-badge cat-${cat}">${escHtml(ext)}</span>
+        ${file.image_content_kind ? `<span class="content-kind-badge">${escHtml(file.image_content_kind)}</span>` : ''}
         ${file.available === false ? '<span class="availability-badge"><i data-lucide="hard-drive-off"></i> Unavailable</span>' : ''}
       </div>
     </div>
 
     <div class="file-actions">
+      ${cat === 'image' ? `<button class="btn-icon analyze-image-btn" title="${file.image_content_kind ? 'Image text is indexed' : 'Analyze this image next'}" data-path="${escHtml(file.path)}" ${file.image_content_kind ? 'disabled' : ''}>
+        <i data-lucide="${file.image_content_kind ? 'scan-text' : 'sparkles'}"></i>
+      </button>` : ''}
       <button class="btn-icon copy-path-btn" title="Copy path" data-path="${escHtml(file.path)}">
         <i data-lucide="copy"></i>
       </button>
@@ -591,6 +636,34 @@ function buildFileCard(file, index) {
       </button>
     </div>
   `;
+
+  const analyzeButton = card.querySelector('.analyze-image-btn');
+  if (analyzeButton) {
+    analyzeButton.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.innerHTML = '<i data-lucide="loader-circle"></i>';
+      lucide.createIcons({ nodes: [button] });
+      try {
+        const response = await fetch(`${API}/image-analysis/prioritize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: file.path }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not queue image analysis.');
+        button.title = 'Queued for local text analysis';
+        button.innerHTML = '<i data-lucide="clock-3"></i>';
+        updateIndexingNotice({ imageAnalysis: data.status });
+      } catch (error) {
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="refresh-cw"></i>';
+        appendErrorMessage(error.message);
+      }
+      lucide.createIcons({ nodes: [button] });
+    });
+  }
 
   // Copy path button
   card.querySelector('.copy-path-btn').addEventListener('click', async (e) => {
