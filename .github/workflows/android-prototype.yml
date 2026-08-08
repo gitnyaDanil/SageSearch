@@ -35,8 +35,11 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+      - name: Verify Android SDK components
+        run: |
+          test -n "$ANDROID_HOME"
+          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
 
       - name: Verify Gradle wrapper
         working-directory: android
