@@ -8,22 +8,27 @@ the same receipt-oriented rules as the Windows prototype, and displays:
 - receipt confidence;
 - detected visible text;
 - merchant/date/total candidates when available.
+- a private local index of manually analyzed images;
+- text search across saved OCR and receipt fields.
 
 For this early validation, `picture` means that the receipt rules found
 insufficient receipt evidence. Object labels, scene classification, and faces
 are intentionally not claimed yet.
 
-It does not upload images, request full photo-library permission, persist an index,
-or search thousands of images yet. Those capabilities belong to the next Android
-milestone after this single-image validation.
+It does not upload images or request full photo-library permission. Each image is
+still selected manually, but its analysis is now saved in a Room database on the
+device and can be searched later. Automatic library indexing and search across
+thousands of images belong to the next Android milestone.
 
 ## Run it
 
-1. Install current Android Studio with Android SDK 37 and JDK 17.
+1. Install current Android Studio with Android SDK 36 and JDK 17.
 2. Open the `android` directory as a project.
 3. Allow Gradle sync to download the Android and ML Kit dependencies.
 4. Run `app` on an Android 6.0 (API 23) or newer emulator/device.
-5. Tap **Choose an image** and select a clear, upright receipt.
+5. Tap **Choose an image** and select a receipt or photo.
+6. After analyzing several images, enter visible text or a receipt field under
+   **Local image index**, then tap **Search local index**.
 
 From a Windows terminal configured with Android Studio's JDK and SDK, the same
 verification can be run with:
@@ -48,9 +53,9 @@ available immediately and keeps this prototype independent of a model download.
 
 ## Next Android milestone
 
-Add user-approved library ingestion through MediaStore, a persistent Room index,
-background WorkManager jobs, full-text search, progress/retry UI, and shared receipt
-heuristic fixtures so Windows and Android can be compared against the same examples.
+Add user-approved library ingestion through MediaStore, background WorkManager
+jobs, a scalable full-text index, progress/retry UI, and shared receipt heuristic
+fixtures so Windows and Android can be compared against the same examples.
 
 ## Build baseline
 
@@ -58,4 +63,5 @@ heuristic fixtures so Windows and Android can be compared against the same examp
 - Kotlin / Compose compiler plugin 2.3.21
 - Compose BOM 2026.06.00
 - ML Kit bundled text recognition 16.0.1
+- Room 2.8.4 with KSP 2.3.9
 - Minimum API 23; compile/target API 36

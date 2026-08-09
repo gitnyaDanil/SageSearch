@@ -21,6 +21,7 @@ class ReceiptHeuristicsTest {
         val (confidence, receipt) = ReceiptHeuristics.analyze(text)
 
         assertTrue(confidence >= 0.45)
+        assertEquals("TOKO MAJU", receipt.merchantCandidate)
         assertEquals("RP 27.750", receipt.totalText?.uppercase())
         assertEquals(27750.0, receipt.total ?: 0.0, 0.001)
         assertEquals("IDR", receipt.currency)

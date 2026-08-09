@@ -23,16 +23,7 @@ class AndroidOcrAnalyzer(private val context: Context) : AutoCloseable {
 
         recognizer.process(image)
             .addOnSuccessListener { recognized ->
-                val text = recognized.text.trim()
-                val (confidence, receipt) = ReceiptHeuristics.analyze(text)
-                onSuccess(
-                    ImageAnalysisResult(
-                        contentKind = if (confidence >= 0.45) "receipt" else "picture",
-                        receiptConfidence = confidence,
-                        ocrText = text,
-                        receipt = receipt,
-                    ),
-                )
+                onSuccess(ImageAnalysisInterpreter.interpret(recognized.text))
             }
             .addOnFailureListener(onError)
     }

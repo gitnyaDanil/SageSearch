@@ -31,10 +31,14 @@ the OCR languages installed in Windows.
 ### Android Studio
 
 1. Open the repository's `android` directory in current Android Studio.
-2. Use JDK 17 and install Android SDK 37 when prompted.
+2. Use JDK 17 and install Android SDK 36 when prompted.
 3. Run the `app` configuration on an API 23+ device or emulator.
-4. Tap **Choose an image**, select one clear receipt, and compare the displayed
+4. Tap **Choose an image**, select a clear receipt, and compare the displayed
    text and receipt fields with the original.
+5. Select a normal photo containing text and confirm it is classified as
+   `picture` without showing receipt-only merchant/date/total fields.
+6. Analyze several images, search the local index using visible text or a receipt
+   field, and confirm the expected saved analyses are returned.
 
 ### GitHub Actions APK
 
@@ -43,8 +47,8 @@ Pushing `codex/image-search` automatically runs **Android prototype**. Its
 Android lint run before the APK is published. Manual Actions-tab dispatch becomes
 available after the workflow file also exists on the default branch.
 
-The Android prototype currently validates one selected image. It does not yet
-index or search the phone's entire media library.
+The Android prototype stores and searches analyses for images selected one at a
+time. It does not yet index or search the phone's entire media library.
 
 ## Record feedback
 
