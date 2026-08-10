@@ -1,5 +1,10 @@
 # SageSearch Android image-search prototype
 
+The complete target architecture, data contracts, milestone gates, and PRD
+traceability are defined in the
+[Android Image Search technical specification](../docs/ANDROID_IMAGE_SEARCH_SPEC.md).
+This README describes only the currently runnable prototype.
+
 This is the first Android vertical slice. It lets a tester choose one image with
 Android's Photo Picker, runs bundled ML Kit Latin-script OCR on the device, applies
 the same receipt-oriented rules as the Windows prototype, and displays:

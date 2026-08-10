@@ -444,7 +444,9 @@ candidates with understandable explanations.
 - Validate target Android user and storage scope.
 - Benchmark candidate models and databases on representative phones.
 - Decide whether search is device-local, synchronized, or both.
-- Produce a separate Android delivery PRD and architecture plan.
+- Use and maintain the separate
+  [`ANDROID_IMAGE_SEARCH_SPEC.md`](ANDROID_IMAGE_SEARCH_SPEC.md) delivery and
+  architecture guide.
 
 ## 15. Out of scope for the planned Windows releases
 
