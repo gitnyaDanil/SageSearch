@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+
     <application
-        android:allowBackup="true"
-        android:label="SageSearch Image Test"
+        android:name=".SageSearchApplication"
+        android:allowBackup="false"
+        android:label="SageSearch"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity

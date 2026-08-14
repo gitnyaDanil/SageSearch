@@ -1,22 +1,15 @@
 package com.sagesearch.android
 
-import android.content.Context
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import androidx.room.Upsert
+import android.net.Uri
+import com.sagesearch.android.data.db.ApprovedSourceEntity
+import com.sagesearch.android.data.db.DocumentEntity
+import com.sagesearch.android.data.db.SageSearchDatabase
+import com.sagesearch.android.model.AnalysisStatus
+import com.sagesearch.android.model.SourceKind
+import com.sagesearch.android.model.SourceStatus
 
-@Entity(
-    tableName = "indexed_images",
-    indices = [Index(value = ["analyzedAtMillis"])],
-)
 data class IndexedImage(
-    @PrimaryKey val imageUri: String,
+    val imageUri: String,
     val analyzedAtMillis: Long,
     val contentKind: String,
     val receiptConfidence: Double,
@@ -56,44 +49,73 @@ data class IndexedImage(
     }
 }
 
-@Dao
-interface IndexedImageDao {
-    @Upsert
-    suspend fun upsert(image: IndexedImage)
+class LegacyIndexedImageStore(
+    private val database: SageSearchDatabase,
+) {
+    suspend fun upsert(image: IndexedImage) {
+        val sourceId = database.approvedSourceDao().upsert(
+            ApprovedSourceEntity(
+                uri = image.imageUri,
+                label = Uri.parse(image.imageUri).lastPathSegment ?: "Selected image",
+                kind = SourceKind.INDIVIDUAL_FILE.name,
+                status = SourceStatus.READY.name,
+                discoveredCount = 1,
+                indexedCount = 1,
+                lastScannedAtMillis = image.analyzedAtMillis,
+            ),
+        )
+        val document = DocumentEntity(
+            sourceId = sourceId,
+            contentUri = image.imageUri,
+            displayName = Uri.parse(image.imageUri).lastPathSegment ?: "Selected image",
+            mimeType = "image/*",
+            sizeBytes = null,
+            modifiedAtMillis = null,
+            analyzedAtMillis = image.analyzedAtMillis,
+            analysisStatus = AnalysisStatus.INDEXED.name,
+            receiptConfidence = image.receiptConfidence,
+            ocrText = image.ocrText,
+            contentKind = image.contentKind,
+            merchant = image.merchantCandidate,
+            transactionDateIso = null,
+            transactionDateText = image.transactionDateText,
+            amountMinor = normalizeAmountMinor(image.total, image.currency),
+            amountText = image.totalText,
+            currencyCode = image.currency,
+            extractionVersion = 1,
+        )
+        database.documentDao().upsertWithFts(document, document.searchableText())
+    }
 
-    @Query("SELECT COUNT(*) FROM indexed_images")
-    suspend fun count(): Int
+    suspend fun count(): Int = database.documentDao().count()
 
-    @Query(
-        """
-        SELECT * FROM indexed_images
-        WHERE :query = ''
-           OR ocrText LIKE '%' || :query || '%' COLLATE NOCASE
-           OR merchantCandidate LIKE '%' || :query || '%' COLLATE NOCASE
-           OR transactionDateText LIKE '%' || :query || '%' COLLATE NOCASE
-           OR totalText LIKE '%' || :query || '%' COLLATE NOCASE
-           OR currency LIKE '%' || :query || '%' COLLATE NOCASE
-        ORDER BY analyzedAtMillis DESC
-        LIMIT 40
-        """,
-    )
-    suspend fun search(query: String): List<IndexedImage>
+    suspend fun search(query: String): List<IndexedImage> =
+        database.documentDao().legacySearch(query).map(DocumentEntity::toLegacyIndexedImage)
 }
 
-@Database(entities = [IndexedImage::class], version = 1, exportSchema = false)
-abstract class ImageIndexDatabase : RoomDatabase() {
-    abstract fun indexedImageDao(): IndexedImageDao
+private fun DocumentEntity.searchableText(): String = listOfNotNull(
+    displayName,
+    ocrText,
+    merchant,
+    transactionDateIso,
+    transactionDateText,
+    amountText,
+    currencyCode,
+).joinToString(" ")
 
-    companion object {
-        @Volatile
-        private var instance: ImageIndexDatabase? = null
+private fun DocumentEntity.toLegacyIndexedImage(): IndexedImage = IndexedImage(
+    imageUri = contentUri,
+    analyzedAtMillis = analyzedAtMillis,
+    contentKind = contentKind,
+    receiptConfidence = receiptConfidence,
+    ocrText = ocrText,
+    merchantCandidate = merchant,
+    transactionDateText = transactionDateText,
+    totalText = amountText,
+    total = amountMinor?.let { minor -> if (currencyCode.equals("IDR", ignoreCase = true)) minor.toDouble() else minor / 100.0 },
+    currency = currencyCode,
+)
 
-        fun get(context: Context): ImageIndexDatabase = instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(
-                context.applicationContext,
-                ImageIndexDatabase::class.java,
-                "sagesearch-image-index.db",
-            ).build().also { instance = it }
-        }
-    }
+private fun normalizeAmountMinor(total: Double?, currency: String?): Long? = total?.let { value ->
+    if (currency.equals("IDR", ignoreCase = true)) value.toLong() else (value * 100.0).toLong()
 }

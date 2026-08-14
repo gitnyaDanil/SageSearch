@@ -5,8 +5,7 @@ copies of images that do not contain sensitive payment details.
 
 ## Windows vertical slice
 
-1. Work from `C:\Users\Daniel\Documents\SageSearch-image-search` on branch
-   `codex/image-search`.
+1. Work from the cloned SageSearch repository on branch `codex/image-search`.
 2. Put a clear JPG or PNG receipt in Pictures, Downloads, or another indexed
    location.
 3. Start SageSearch with `Start SageSearch.bat`.

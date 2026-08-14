@@ -1,0 +1,20 @@
+{"id":"q001","output":"{\"version\":1,\"textTerms\":[\"coffee\"],\"contentKinds\":[\"receipt\"],\"merchant\":\"Alfamart\",\"amountRangeMinor\":{\"min\":100000},\"currencyCode\":\"IDR\",\"transactionDateRange\":{\"start\":\"2026-07-01\",\"end\":\"2026-07-31\"}}","latency_ms":11676,"accepted":true}
+{"id":"q002","output":"{\"version\":1,\"textTerms\":[\"Toko Maju\",\"receipt\"],\"merchant\":\"Toko Maju\",\"amountRangeMinor\":{\"max\":27750},\"currencyCode\":\"IDR\",\"transactionDateRange\":{\"start\":\"2026-08-08\",\"end\":\"2026-08-08\"}}","latency_ms":11589,"accepted":true}
+{"id":"q003","output":"{\"version\":1,\"textTerms\":[\"Welcome to Bandung\"],\"contentKinds\":[\"picture\"]}","latency_ms":8330,"accepted":true}
+{"id":"q004","output":"{\"version\":1,\"contentKinds\":[\"receipt\"],\"amountRangeMinor\":{\"min\":100,\"max\":500},\"currencyCode\":\"USD\"}","latency_ms":9149,"accepted":true}
+{"id":"q005","output":"{\"version\":1,\"textTerms\":[\"battery\"],\"contentKinds\":[\"receipt\"]}","latency_ms":8146,"accepted":true}
+{"id":"q006","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"labels\":[\"conference badge\"],\"albumHint\":\"Camera\"}","latency_ms":8488,"accepted":true}
+{"id":"q007","output":"{\"version\":1,\"contentKinds\":[\"receipt\"],\"amountRangeMinor\":{\"max\":50000},\"currencyCode\":\"IDR\"}","latency_ms":8947,"accepted":true}
+{"id":"q008","output":"{\"version\":1,\"contentKinds\":[\"receipt\"],\"amountRangeMinor\":{\"min\":125000},\"currencyCode\":\"IDR\"}","latency_ms":9015,"accepted":true}
+{"id":"q009","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"faceFilter\":\"none\"}","latency_ms":8147,"accepted":true}
+{"id":"q010","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"faceFilter\":\"multiple\"}","latency_ms":8168,"accepted":true}
+{"id":"q011","output":"{\"version\":1,\"textTerms\":[\"error code 0x80070005\"],\"contentKinds\":[\"picture\"]}","latency_ms":8975,"accepted":true}
+{"id":"q012","output":"{\"version\":1,\"contentKinds\":[\"receipt\"],\"merchant\":\"Toko Maju\",\"currencyCode\":\"IDR\"}","latency_ms":8678,"accepted":true}
+{"id":"q013","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"labels\":[\"bicycle\"]}","latency_ms":8185,"accepted":true}
+{"id":"q014","output":"{\"version\":1,\"textTerms\":[\"Struk Alfamart\",\"Juli 2026\",\"Rp100 ribu\"],\"contentKinds\":[\"receipt\"],\"merchant\":\"Alfamart\",\"amountRangeMinor\":{\"min\":100000},\"currencyCode\":\"IDR\",\"transactionDateRange\":{\"start\":\"2026-07-01\",\"end\":\"2026-07-31\"}}","latency_ms":12825,"accepted":true}
+{"id":"q015","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"albumHint\":\"WhatsApp Images\"}","latency_ms":8241,"accepted":true}
+{"id":"q016","output":"{\"version\":1,\"contentKinds\":[\"receipt\"]}","latency_ms":7845,"accepted":true}
+{"id":"q017","output":"{\"version\":1,\"textTerms\":[\"coffee\"],\"contentKinds\":[\"picture\"]}","latency_ms":8179,"accepted":true}
+{"id":"q018","output":"{\"version\":1,\"transactionDateRange\":{\"start\":\"2026-08-08\",\"end\":\"2026-08-08\"}}","latency_ms":9424,"accepted":true}
+{"id":"q019","output":"{\"version\":1,\"mediaDateRange\":{\"start\":\"2026-08-01T00:00:00Z\",\"end\":\"2026-08-07T23:59:59Z\"}}","latency_ms":10667,"accepted":true}
+{"id":"q020","output":"{\"version\":1,\"contentKinds\":[\"picture\"],\"labels\":[\"bicycle\"],\"faceFilter\":\"exactly_one\"}","latency_ms":8536,"accepted":true}

@@ -18,3 +18,11 @@ Thumbs.db
 *.zip
 dist/
 build/
+
+# Python benchmark caches
+__pycache__/
+*.py[cod]
+
+# Local UI hierarchy dumps can expose device-specific state. Public evidence
+# keeps only the reviewed screenshots and privacy-safe JSON/CSV reports.
+artifacts/*.xml

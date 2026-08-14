@@ -2,6 +2,7 @@ package com.sagesearch.android
 
 data class ReceiptFields(
     val merchantCandidate: String? = null,
+    val transactionDateIso: String? = null,
     val transactionDateText: String? = null,
     val totalText: String? = null,
     val total: Double? = null,

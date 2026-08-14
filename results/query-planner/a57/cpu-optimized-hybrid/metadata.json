@@ -1,0 +1,78 @@
+{
+  "evidence_kind": "synthetic on-device production planner pipeline",
+  "captured_at": "2026-08-14T19:01:37.8997956+07:00",
+  "repository_commit": "4fb5abfdace6abe606811e8324b5cbbd60f578b4",
+  "worktree_state": "dirty; Task 9 implementation under verification",
+  "device": {
+    "manufacturer": "samsung",
+    "model": "SM-A576B",
+    "serial": "RRGL407N67Y",
+    "android_release": "16",
+    "security_patch": "2026-07-05",
+    "build_fingerprint": "samsung/a57xnaxx/a57x:16/BP4A.251205.006/A576BXXS4AZG5_OLM4AZG5:user/release-keys",
+    "abi_list": "arm64-v8a",
+    "battery_after_percent": 90,
+    "battery_temperature_after_celsius": 35.5,
+    "usb_power_connected": true
+  },
+  "model": {
+    "source": "litert-community/gemma-4-E2B-it-litert-lm",
+    "file_size_bytes": 2588147712,
+    "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "name": "LiteRT-LM",
+    "version": "0.16.0",
+    "backend": "CPU",
+    "response_constraint": "native JSON Schema via ResponseFormat.json"
+  },
+  "generation": {
+    "prompt_version": "sagesearch-query-plan-v1-opt2",
+    "prompt_template_sha256": "b08801516df4e7bc7b771abc171093e7f788672113e3902ce601e7742efe8ec7",
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "seed": 0,
+    "max_output_tokens": 192
+  },
+  "trusted_pipeline": {
+    "steps": [
+      "native schema-constrained Gemma generation",
+      "strict duplicate-key and allow-list validation",
+      "deterministic reconciliation of explicit arithmetic, calendar, OCR, and file-type clues",
+      "strict revalidation",
+      "typed SearchPlan mapping"
+    ],
+    "raw_model_output_preserved_in": "outputs.jsonl#raw_output",
+    "executed_plan_preserved_in": "outputs.jsonl#output"
+  },
+  "evaluation": {
+    "case_count": 20,
+    "strict_json_rate": 1.0,
+    "schema_valid_rate": 1.0,
+    "exact_plan_rate": 1.0,
+    "plan_slot_precision": 1.0,
+    "plan_slot_recall": 1.0,
+    "plan_slot_f1": 1.0,
+    "latency_ms_median": 9032.0,
+    "latency_ms_p95": 12609.15,
+    "latency_ms_min": 8159.0,
+    "latency_ms_max": 15937.0,
+    "raw_model_reference_report": "../cpu-optimized-constrained/report.json",
+    "raw_model_plan_slot_f1": 0.828125,
+    "raw_output_comparison": "All 20 raw_output values exactly match the referenced raw constrained run."
+  },
+  "artifacts": {
+    "schema_sha256": "5c8337e69f149149f3a06c6f5eed57edf2feaf1b9ffb819e6fe5a213aea51a55",
+    "outputs_sha256": "a9581cc58428077507fe446b6bc2bd5788898313ae3a8850fc294026ed6fffe4",
+    "report_sha256": "832fbc8b54a91506406fc7f3f5971318f3ed944b58a2f32fcaa2a94a877bb0a7",
+    "apk_size_bytes": 116854266,
+    "apk_sha256": "1e3899523f156e6bcbf0024c53dcb5939ed247232c426c6311f3387094596e34"
+  },
+  "limitations": [
+    "The 20-case set is synthetic and small; the score is an engineering smoke gate, not a broad accuracy claim.",
+    "Latency includes generation and trusted reconciliation but excludes document retrieval.",
+    "CPU backend is claimed; no GPU, NPU, SME2, i8mm, or KleidiAI acceleration is claimed by this evidence."
+  ]
+}
