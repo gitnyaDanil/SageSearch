@@ -1,5 +1,13 @@
 # SageSearch Arm Create demo assets
 
+## Devpost thumbnail
+
+`sagesearch-devpost-thumbnail.png` is the reviewed black-and-white 1200x630
+project thumbnail. It uses no third-party logo or generated artwork.
+
+- Size: 38,497 bytes
+- SHA-256: `2424AEB6016DF6988D875647864DD7D2E91DB39A8B6BBB5823DBC341AC1BEDC4`
+
 ## Captioned video draft
 
 `SageSearch-Arm-Create-demo-draft.mp4` is a 42-second, 1080x1920 H.264 video

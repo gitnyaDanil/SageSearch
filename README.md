@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
+![SageSearch — private AI file search on Arm](artifacts/demo/sagesearch-devpost-thumbnail.png)
+
 > Find local files using plain language. Your file index and results stay on your device.
 
 ---
