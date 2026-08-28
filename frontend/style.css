@@ -968,3 +968,490 @@ html, body {
   #input-area { padding: 10px 14px 14px; }
   .app-subtitle { display: none; }
 }
+
+/* ─── Dual-Mode Switcher ─────────────────────────────────────────────────── */
+.titlebar-modes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.mode-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-md);
+}
+
+.mode-tab.active {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  border: 1px solid rgba(79, 130, 245, 0.35);
+  box-shadow: 0 0 12px rgba(79, 130, 245, 0.15);
+}
+
+.mode-tab svg { width: 15px; height: 15px; }
+
+.badge-taskmaster {
+  background: linear-gradient(135deg, #f5834f, #9b5ff5);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 99px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.mode-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.mode-view[hidden] {
+  display: none !important;
+}
+
+/* ─── Agent Welcome & Recipe Grid ────────────────────────────────────────── */
+.agent-welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 24px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.agent-icon-glow {
+  background: radial-gradient(circle, rgba(155, 95, 245, 0.35) 0%, transparent 70%);
+  color: #9b5ff5;
+}
+
+.agent-recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.recipe-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--duration) var(--ease);
+}
+
+.recipe-card:hover {
+  background: var(--bg-surface-hi);
+  border-color: rgba(79, 130, 245, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.recipe-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.recipe-icon svg { width: 18px; height: 18px; }
+
+.recipe-content h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.recipe-content p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.recipe-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid rgba(79, 130, 245, 0.3);
+}
+
+/* ─── Agent Workflow Execution Feed ─────────────────────────────────────── */
+.agent-workflow-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.agent-goal-banner {
+  background: var(--bg-surface-md);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.agent-goal-banner svg {
+  color: var(--accent-hover);
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.agent-goal-banner .goal-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.agent-goal-banner .goal-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ─── Timeline Steps ─────────────────────────────────────────────────────── */
+.agent-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.timeline-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--duration) var(--ease);
+}
+
+.step-item.completed {
+  border-color: rgba(63, 201, 123, 0.25);
+  background: rgba(63, 201, 123, 0.04);
+}
+
+.step-item.in_progress {
+  border-color: rgba(79, 130, 245, 0.4);
+  background: var(--accent-dim);
+  animation: pulseGlow 1.8s infinite;
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 rgba(79, 130, 245, 0); }
+  50% { box-shadow: 0 0 12px rgba(79, 130, 245, 0.2); }
+  100% { box-shadow: 0 0 0 rgba(79, 130, 245, 0); }
+}
+
+.step-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-item.completed .step-icon {
+  background: rgba(63, 201, 123, 0.2);
+  color: #3fc97b;
+}
+
+.step-item.in_progress .step-icon {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.step-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.step-tool-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-muted);
+  background: var(--bg-surface-md);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ─── Structured Preview Table Card ──────────────────────────────────────── */
+.preview-card {
+  background: var(--bg-surface);
+  border: 1px solid rgba(79, 130, 245, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s var(--ease);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.preview-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-normal);
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.preview-table th {
+  background: var(--bg-surface-hi);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-normal);
+  white-space: nowrap;
+}
+
+.preview-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.preview-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.metric-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: 99px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.pill.highlight {
+  background: rgba(63, 201, 123, 0.12);
+  border-color: rgba(63, 201, 123, 0.35);
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* ─── Approval Controls ──────────────────────────────────────────────────── */
+.approval-prompt-box {
+  background: rgba(79, 130, 245, 0.08);
+  border: 1px solid rgba(79, 130, 245, 0.25);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.approval-prompt-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.approval-btn-group {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-approve:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 16px rgba(79, 130, 245, 0.4);
+}
+
+.btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+}
+
+.btn-cancel:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ─── Final Artifact Card ────────────────────────────────────────────────── */
+.artifact-success-card {
+  background: rgba(63, 201, 123, 0.06);
+  border: 1px solid rgba(63, 201, 123, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: slideIn 0.4s var(--ease);
+}
+
+.artifact-success-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4ade80;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.artifact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg-surface-hi);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all var(--duration) var(--ease);
+}
+
+.artifact-action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
+}
+

@@ -39,6 +39,18 @@ const lmEndpoint = document.getElementById('lm-endpoint');
 const lmModel = document.getElementById('lm-model');
 const settingsError = document.getElementById('settings-error');
 
+// Agent Mode DOM References
+const modeSearchBtn   = document.getElementById('mode-search-btn');
+const modeAgentBtn    = document.getElementById('mode-agent-btn');
+const searchView      = document.getElementById('search-view');
+const agentView       = document.getElementById('agent-view');
+const agentWelcome    = document.getElementById('agent-welcome');
+const agentWorkflow   = document.getElementById('agent-workflow');
+const inputHint       = document.getElementById('input-hint');
+
+let currentMode = 'search';
+let activeAgentTaskId = null;
+
 // ─── Initialization ───────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -53,6 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Event Bindings ───────────────────────────────────────────────────────
 
 function bindEvents() {
+  // Mode switcher tabs
+  if (modeSearchBtn && modeAgentBtn) {
+    modeSearchBtn.addEventListener('click', () => switchMode('search'));
+    modeAgentBtn.addEventListener('click', () => switchMode('agent'));
+  }
+
   // Send on Enter (but Shift+Enter = newline if we ever add textarea)
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -69,7 +87,7 @@ function bindEvents() {
   settingsForm.addEventListener('submit', saveSettings);
   settingsForm.querySelectorAll('input[name="provider-mode"]').forEach((input) => input.addEventListener('change', updateLocalSettingsVisibility));
 
-  // Example chips
+  // Search Example chips
   document.querySelectorAll('.chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       const query = chip.dataset.query;
@@ -79,6 +97,42 @@ function bindEvents() {
       }
     });
   });
+
+  // Agent Recipe cards
+  document.querySelectorAll('.recipe-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const goal = card.dataset.agentGoal;
+      if (goal) {
+        switchMode('agent');
+        searchInput.value = goal;
+        startAgentGoal(goal);
+      }
+    });
+  });
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  if (mode === 'search') {
+    modeSearchBtn.classList.add('active');
+    modeAgentBtn.classList.remove('active');
+    searchView.hidden = false;
+    searchView.classList.add('active');
+    agentView.hidden = true;
+    agentView.classList.remove('active');
+    searchInput.placeholder = "Describe what you're looking for…";
+    inputHint.innerHTML = "SageSearch starts a new search each time you press <kbd>Enter</kbd> &middot; File metadata stays on your device";
+  } else {
+    modeAgentBtn.classList.add('active');
+    modeSearchBtn.classList.remove('active');
+    agentView.hidden = false;
+    agentView.classList.add('active');
+    searchView.hidden = true;
+    searchView.classList.remove('active');
+    searchInput.placeholder = "Describe an autonomous goal (e.g. Find receipts and create expense CSV)…";
+    inputHint.innerHTML = "Taskmaster Agent plans & executes multi-step file workflows with Google Gemini";
+  }
+  searchInput.focus();
 }
 
 function updateLocalSettingsVisibility() {
@@ -350,6 +404,12 @@ function formatRelativeTime(ts) {
 async function sendMessage() {
   const query = searchInput.value.trim();
   if (!query) return;
+
+  if (currentMode === 'agent') {
+    searchInput.value = '';
+    await startAgentGoal(query);
+    return;
+  }
 
   // Hide welcome screen on first message
   if (welcomeEl) welcomeEl.style.display = 'none';
@@ -671,6 +731,200 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ─── Agent Mode Controller ───────────────────────────────────────────────
+
+async function startAgentGoal(goalText) {
+  if (!goalText || !goalText.trim()) return;
+
+  if (agentWelcome) agentWelcome.hidden = true;
+  if (agentWorkflow) {
+    agentWorkflow.hidden = false;
+    agentWorkflow.innerHTML = `
+      <div class="agent-goal-banner">
+        <i data-lucide="bot"></i>
+        <div>
+          <div class="goal-text">${escHtml(goalText)}</div>
+          <div class="goal-sub">Orchestrating multi-step workflow with Google Gemini</div>
+        </div>
+      </div>
+
+      <div class="agent-timeline" id="agent-timeline">
+        <div class="timeline-header">
+          <span class="timeline-title">Plan & Progress</span>
+        </div>
+        <div id="steps-container">
+          <div class="step-item in_progress">
+            <div class="step-icon"><i data-lucide="loader"></i></div>
+            <div class="step-content">
+              <div class="step-title">Formulating autonomous execution plan...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="agent-approval-container"></div>
+      <div id="agent-artifact-container"></div>
+    `;
+    lucide.createIcons();
+  }
+
+  try {
+    const res = await fetch(`${API}/agent/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: goalText, autoApprove: false }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || 'Failed to start agent task');
+    }
+    const task = await res.json();
+    renderAgentTaskState(task);
+  } catch (err) {
+    const container = document.getElementById('agent-approval-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="error-banner" style="margin-top: 14px;">
+          <i data-lucide="alert-circle"></i>
+          <span>Agent execution error: ${escHtml(err.message)}</span>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+  }
+}
+
+function renderAgentTaskState(task) {
+  activeAgentTaskId = task.task_id;
+  const stepsContainer = document.getElementById('steps-container');
+  if (stepsContainer && task.steps && task.steps.length) {
+    stepsContainer.innerHTML = '';
+    task.steps.forEach((step) => {
+      const isDone = step.status === 'completed';
+      const div = document.createElement('div');
+      div.className = `step-item ${step.status}`;
+      div.innerHTML = `
+        <div class="step-icon">
+          <i data-lucide="${isDone ? 'check' : 'loader'}"></i>
+        </div>
+        <div class="step-content">
+          <div class="step-title">Step ${step.step_index}: ${escHtml(step.title)}</div>
+          ${step.tool_name ? `<span class="step-tool-badge"><i data-lucide="wrench"></i> ${escHtml(step.tool_name)}</span>` : ''}
+        </div>
+      `;
+      stepsContainer.appendChild(div);
+    });
+    lucide.createIcons({ nodes: [stepsContainer] });
+  }
+
+  // Render Preview & Approval
+  const approvalContainer = document.getElementById('agent-approval-container');
+  if (approvalContainer) {
+    if (task.status === 'waiting_approval' && task.preview_data) {
+      const { columns = [], rows = [], summary = {} } = task.preview_data;
+      approvalContainer.innerHTML = `
+        <div class="preview-card">
+          <div class="preview-header">
+            <h3><i data-lucide="table"></i> Extracted Data Preview</h3>
+            <div class="metric-pills">
+              <span class="pill"><i data-lucide="file-check"></i> ${summary.total_receipts || rows.length} Items</span>
+              <span class="pill highlight"><i data-lucide="dollar-sign"></i> Total: ${summary.total_expense || '$0.00'}</span>
+            </div>
+          </div>
+
+          <div class="preview-table-container">
+            <table class="preview-table">
+              <thead>
+                <tr>${columns.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr>
+              </thead>
+              <tbody>
+                ${rows.map(row => `<tr>${row.map(cell => `<td>${escHtml(String(cell))}</td>`).join('')}</tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="approval-prompt-box">
+            <div class="approval-prompt-text">${escHtml(task.approval_prompt || 'Found matching records. Proceed to generate output CSV?')}</div>
+            <div class="approval-btn-group">
+              <button class="btn-approve" id="approve-task-btn" type="button">
+                <i data-lucide="check"></i> Approve & Generate CSV
+              </button>
+              <button class="btn-cancel" id="cancel-task-btn" type="button">
+                <i data-lucide="x"></i> Cancel Task
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      lucide.createIcons({ nodes: [approvalContainer] });
+
+      document.getElementById('approve-task-btn')?.addEventListener('click', () => handleTaskApproval(task.task_id, true));
+      document.getElementById('cancel-task-btn')?.addEventListener('click', () => handleTaskApproval(task.task_id, false));
+    } else if (task.status === 'completed' || task.status === 'canceled') {
+      approvalContainer.innerHTML = '';
+    }
+  }
+
+  // Render Artifact if completed
+  const artifactContainer = document.getElementById('agent-artifact-container');
+  if (artifactContainer && task.status === 'completed') {
+    const artifact = task.artifacts && task.artifacts[0] ? task.artifacts[0] : null;
+    artifactContainer.innerHTML = `
+      <div class="artifact-success-card">
+        <div class="artifact-success-header">
+          <i data-lucide="check-circle-2"></i>
+          <span>Task Completed Successfully</span>
+        </div>
+        <p>${escHtml(task.final_summary || 'Successfully generated artifact.')}</p>
+        ${artifact ? `
+          <button class="artifact-action-btn" id="open-artifact-btn" type="button">
+            <i data-lucide="file-spreadsheet"></i>
+            <span>${escHtml(artifact.filename)} (${artifact.byte_count} bytes) &middot; Show in Explorer</span>
+          </button>
+        ` : ''}
+      </div>
+    `;
+    lucide.createIcons({ nodes: [artifactContainer] });
+
+    if (artifact && artifact.saved_path) {
+      document.getElementById('open-artifact-btn')?.addEventListener('click', async () => {
+        try {
+          await fetch(`${API}/open`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: artifact.saved_path, mode: 'explorer' })
+          });
+        } catch (e) {
+          console.error('Error opening artifact:', e);
+        }
+      });
+    }
+  }
+}
+
+async function handleTaskApproval(taskId, approved) {
+  const btnGroup = document.querySelector('.approval-btn-group');
+  if (btnGroup) {
+    btnGroup.innerHTML = '<span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="loader"></i> Finalizing task...</span>';
+    lucide.createIcons();
+  }
+
+  try {
+    const res = await fetch(`${API}/agent/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId, approved }),
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const data = await res.json();
+    renderAgentTaskState(data);
+  } catch (err) {
+    alert(`Approval error: ${err.message}`);
+  }
 }
 
 // ─── Periodic health recheck (every 30s) ─────────────────────────────────

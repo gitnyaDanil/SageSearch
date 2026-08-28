@@ -23,5 +23,10 @@
     "maxResults": 50,
     "maxDepth": 6,
     "indexRefreshMinutes": 15
+  },
+  "agentBridge": {
+    "enabled": true,
+    "bridgeUrl": "ws://localhost:8080/ws/bridge",
+    "agentHttpUrl": "http://localhost:8080"
   }
 }

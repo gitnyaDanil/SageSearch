@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SageSearch — AI File Finder</title>
-  <meta name="description" content="Find any file on your computer using natural language. Private and fully offline." />
+  <title>SageSearch — AI File Finder & Autonomous Agent</title>
+  <meta name="description" content="Find any file on your computer and automate multi-step file workflows with Google Gemini. Private and local-first." />
 
   <!-- Inter font — open source via Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,8 +27,22 @@
         <i data-lucide="search"></i>
       </div>
       <span class="app-name">SageSearch</span>
-      <span class="app-subtitle">AI File Finder</span>
+      <span class="app-subtitle">AI Agent</span>
     </div>
+
+    <!-- Center Mode Switcher (Dual-Lane) -->
+    <nav class="titlebar-modes" aria-label="Mode selector">
+      <button id="mode-search-btn" class="mode-tab active" type="button" title="Lane 1: Direct File Search">
+        <i data-lucide="search"></i>
+        <span>Direct Search</span>
+      </button>
+      <button id="mode-agent-btn" class="mode-tab" type="button" title="Lane 2: Autonomous Multi-Step Workflows">
+        <i data-lucide="bot"></i>
+        <span>Agent Mode</span>
+        <span class="badge-taskmaster">Taskmaster</span>
+      </button>
+    </nav>
+
     <div class="titlebar-right">
       <button id="settings-btn" class="icon-button" type="button" title="Advanced Settings" aria-label="Advanced Settings">
         <i data-lucide="settings-2"></i>
@@ -48,7 +62,7 @@
       <div class="sidebar-section">
         <div class="sidebar-heading">
           <i data-lucide="clock"></i>
-          Recent Searches
+          <span id="sidebar-history-label">Recent Searches</span>
         </div>
         <ul id="recent-list" class="recent-list">
           <!-- Populated by app.js -->
@@ -78,41 +92,90 @@
     <!-- Main Content Area -->
     <main id="content">
 
-      <!-- Messages + Results Feed -->
-      <div id="messages" role="log" aria-label="Chat messages" aria-live="polite">
+      <!-- ── Lane 1: Direct Search View ──────────────────────────── -->
+      <div id="search-view" class="mode-view active">
+        <div id="messages" role="log" aria-label="Chat messages" aria-live="polite">
 
-        <!-- Welcome screen — hidden once chat starts -->
-        <div id="welcome" class="welcome-screen">
-          <div class="welcome-icon" aria-hidden="true">
-            <i data-lucide="file-search"></i>
+          <!-- Welcome screen — hidden once chat starts -->
+          <div id="welcome" class="welcome-screen">
+            <div class="welcome-icon" aria-hidden="true">
+              <i data-lucide="file-search"></i>
+            </div>
+            <h1 class="welcome-title">Find anything on your computer</h1>
+            <p class="welcome-subtitle">
+              Describe what you're looking for in plain language.<br />
+              SageSearch will find it across your Documents, Downloads, and more.
+            </p>
+            <div class="example-chips" role="list">
+              <button class="chip" role="listitem" data-query="Find all PDFs from last week">
+                <i data-lucide="file-text"></i> PDFs from last week
+              </button>
+              <button class="chip" role="listitem" data-query="Show me screenshots from yesterday">
+                <i data-lucide="image"></i> Screenshots from yesterday
+              </button>
+              <button class="chip" role="listitem" data-query="Find MP4 videos in Downloads">
+                <i data-lucide="film"></i> Videos in Downloads
+              </button>
+              <button class="chip" role="listitem" data-query="Find audio files called recording">
+                <i data-lucide="music"></i> Audio files named "recording"
+              </button>
+              <button class="chip" role="listitem" data-query="Show me Excel files from this month">
+                <i data-lucide="table"></i> Excel files this month
+              </button>
+              <button class="chip" role="listitem" data-query="Find pictures in Pictures folder">
+                <i data-lucide="image"></i> Pictures folder images
+              </button>
+            </div>
           </div>
-          <h1 class="welcome-title">Find anything on your computer</h1>
+
+        </div>
+      </div>
+
+      <!-- ── Lane 2: Agent Mode View ────────────────────────────── -->
+      <div id="agent-view" class="mode-view" hidden>
+        <!-- Welcome Screen for Agent Mode -->
+        <div id="agent-welcome" class="agent-welcome-screen">
+          <div class="welcome-icon agent-icon-glow" aria-hidden="true">
+            <i data-lucide="bot"></i>
+          </div>
+          <h1 class="welcome-title">Autonomous File Workflows</h1>
           <p class="welcome-subtitle">
-            Describe what you're looking for in plain language.<br />
-            SageSearch will find it across your Documents, Downloads, and more.
+            Delegate multi-step file chores to the Google Gemini Taskmaster agent.<br />
+            SageSearch searches files, reads contents, extracts structured data, and compiles reports for your review.
           </p>
-          <div class="example-chips" role="list">
-            <button class="chip" role="listitem" data-query="Find all PDFs from last week">
-              <i data-lucide="file-text"></i> PDFs from last week
+
+          <div class="agent-recipe-grid" role="list">
+            <button class="recipe-card" role="listitem" data-agent-goal="Find all gym and travel receipts from last month, extract the amounts, and create an expense report CSV">
+              <div class="recipe-icon"><i data-lucide="receipt"></i></div>
+              <div class="recipe-content">
+                <h3>Receipts to Expense Report</h3>
+                <p>Scans receipts, extracts merchant and amounts, and compiles an expense CSV.</p>
+              </div>
+              <span class="recipe-badge">Taskmaster</span>
             </button>
-            <button class="chip" role="listitem" data-query="Show me screenshots from yesterday">
-              <i data-lucide="image"></i> Screenshots from yesterday
+
+            <button class="recipe-card" role="listitem" data-agent-goal="Find all project specification documents from last week and compile a structured summary report">
+              <div class="recipe-icon"><i data-lucide="file-spreadsheet"></i></div>
+              <div class="recipe-content">
+                <h3>Project Specs Summary</h3>
+                <p>Locates recent requirements docs and compiles a structured Markdown table.</p>
+              </div>
             </button>
-            <button class="chip" role="listitem" data-query="Find MP4 videos in Downloads">
-              <i data-lucide="film"></i> Videos in Downloads
-            </button>
-            <button class="chip" role="listitem" data-query="Find audio files called recording">
-              <i data-lucide="music"></i> Audio files named "recording"
-            </button>
-            <button class="chip" role="listitem" data-query="Show me Excel files from this month">
-              <i data-lucide="table"></i> Excel files this month
-            </button>
-            <button class="chip" role="listitem" data-query="Find pictures in Pictures folder">
-              <i data-lucide="image"></i> Pictures folder images
+
+            <button class="recipe-card" role="listitem" data-agent-goal="Find all contractor invoices and compile an itemized payment schedule">
+              <div class="recipe-icon"><i data-lucide="file-check"></i></div>
+              <div class="recipe-content">
+                <h3>Invoices & Payment Schedule</h3>
+                <p>Extracts folio numbers, payment balances, and due dates.</p>
+              </div>
             </button>
           </div>
         </div>
 
+        <!-- Dynamic Agent Workflow Progress & Artifact Container -->
+        <div id="agent-workflow" class="agent-workflow-feed" hidden>
+          <!-- Populated by app.js on agent task run -->
+        </div>
       </div>
 
       <!-- Input Bar -->
@@ -126,11 +189,11 @@
             aria-label="Search prompt"
             maxlength="300"
           />
-          <button id="send-btn" aria-label="Send search" title="Send (Enter)">
+          <button id="send-btn" aria-label="Send" title="Send (Enter)">
             <i data-lucide="arrow-up"></i>
           </button>
         </div>
-        <p class="input-hint">SageSearch starts a new search each time you press <kbd>Enter</kbd> &middot; File metadata stays on your device</p>
+        <p class="input-hint" id="input-hint">SageSearch starts a new search each time you press <kbd>Enter</kbd> &middot; File metadata stays on your device</p>
       </div>
 
     </main>

@@ -1,8 +1,7 @@
 @echo off
 title SageSearch — Stopping...
 echo.
-echo  Stopping SageSearch...
+echo  Stopping SageSearch Backend and Agent Services...
 taskkill /f /im node.exe >nul 2>&1
-echo  SageSearch stopped.
-echo.
-timeout /t 2 /nobreak >nul
+echo  SageSearch desktop stopped.
+timeout /t 1 /nobreak >nul

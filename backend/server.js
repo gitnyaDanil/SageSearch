@@ -9,6 +9,7 @@ const {
 const { openInExplorer, openFile } = require('./tools/explorer');
 const { createInterpretProvider } = require('./interpret-search');
 const { validateInterpretation, hasSupportedFilter, applyQueryDefaults } = require('./interpret-search/schema');
+const { AgentBridgeClient } = require('./agent-bridge/client');
 
 const configPath = path.join(__dirname, 'config.json');
 const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -25,6 +26,14 @@ const databasePath = process.env.SAGESEARCH_DATABASE_PATH || path.join(dataDirec
 const searchIndex = initializeSearchIndex({ databasePath, maxDepth: cfg.search?.maxDepth });
 const indexRefreshMs = Math.max(1, cfg.search?.indexRefreshMinutes || 15) * 60_000;
 setInterval(() => searchIndex.start(), indexRefreshMs).unref();
+
+const bridgeConfig = cfg.agentBridge || {};
+const agentBridge = new AgentBridgeClient({
+  bridgeUrl: process.env.SAGESEARCH_BRIDGE_URL || bridgeConfig.bridgeUrl || 'ws://localhost:8080/ws/bridge',
+  agentHttpUrl: process.env.SAGESEARCH_AGENT_URL || bridgeConfig.agentHttpUrl || 'http://localhost:8080',
+  searchIndex,
+  autoConnect: bridgeConfig.enabled !== false,
+});
 
 function resolvedProviderConfig() {
   const legacyLocalEndpoint = `http://${cfg.lmStudio?.host || 'localhost'}:${cfg.lmStudio?.port || 1234}`;
@@ -265,6 +274,37 @@ app.post('/api/locations/:id/reindex', (req, res) => {
   const id = Number.parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || !reindexLocation(id)) return res.status(404).json({ error: 'Location not found.' });
   res.status(202).json({ status: 'indexing' });
+});
+
+// Agent Mode API endpoints
+app.get('/api/agent/status', (_req, res) => {
+  res.json(agentBridge.getStatus());
+});
+
+app.post('/api/agent/start', async (req, res) => {
+  try {
+    const { goal, autoApprove = false } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ error: 'Goal is required.' });
+    }
+    const task = await agentBridge.startTask(goal.trim(), autoApprove);
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/agent/respond', async (req, res) => {
+  try {
+    const { taskId, approved, feedback } = req.body || {};
+    if (!taskId) {
+      return res.status(400).json({ error: 'taskId is required.' });
+    }
+    const result = await agentBridge.respondToTask(taskId, Boolean(approved), feedback);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
