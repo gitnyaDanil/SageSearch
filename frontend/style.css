@@ -124,9 +124,24 @@
   border-color: var(--border-normal);
 }
 
+[data-theme="light"] #sidebar {
+  background: #FFFFFF !important;
+  border-right: 1px solid var(--border-normal);
+}
+
+[data-theme="light"] #input-area {
+  background: #FFFFFF !important;
+  border-top: 1px solid var(--border-normal);
+}
+
+[data-theme="light"] #titlebar {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid var(--border-normal);
+}
+
 [data-theme="light"] .input-wrapper {
-  background: #FFFFFF;
-  border-color: var(--border-normal);
+  background: #FFFFFF !important;
+  border: 1px solid var(--border-normal);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────────── */
