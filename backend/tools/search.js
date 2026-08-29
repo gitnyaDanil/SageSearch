@@ -204,7 +204,7 @@ class SearchIndex {
       try {
       this.db.prepare('DELETE FROM files WHERE location_id = ?').run(id);
       const insert = this.db.prepare(`
-        INSERT INTO files (location_id, name, full_path, folder, extension, category, size_bytes, created_iso, modified_iso)
+        INSERT OR REPLACE INTO files (location_id, name, full_path, folder, extension, category, size_bytes, created_iso, modified_iso)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const file of files) insert.run(id, file.name, file.fullPath, file.folder, file.extension, file.category, file.size, file.created, file.modified);
