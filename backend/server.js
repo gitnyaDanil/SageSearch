@@ -282,6 +282,35 @@ app.get('/api/agent/status', (_req, res) => {
   res.json(agentBridge.getStatus());
 });
 
+app.get('/api/agent/memory', async (req, res) => {
+  try {
+    const memory = await agentBridge.getMemory(req.query.user_id || 'default_user');
+    res.json(memory);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/agent/memory', async (req, res) => {
+  try {
+    const { preferences, user_id = 'default_user' } = req.body || {};
+    const updated = await agentBridge.saveMemory(preferences || {}, user_id);
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/agent/memory/clear', async (req, res) => {
+  try {
+    const { user_id = 'default_user' } = req.body || {};
+    const cleared = await agentBridge.clearMemory(user_id);
+    res.json(cleared);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/agent/start', async (req, res) => {
   try {
     const { goal, autoApprove = false } = req.body || {};

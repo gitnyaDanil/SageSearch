@@ -2,6 +2,9 @@
 import os
 import asyncio
 from typing import Any, Dict, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -54,11 +57,51 @@ def health_check() -> Dict[str, Any]:
         "version": "1.0.0",
         "mock_mode": agent.mock_mode,
         "model": agent.model_name,
+        "firestore_enabled": state_manager.use_firestore,
+        "has_api_key": bool(agent.api_key),
+        "vertex_ai_enabled": agent.use_vertex,
+        "project": agent.project if agent.use_vertex else None,
         "bridge": {
             "connected_clients": len(bridge_manager.active_connections),
             "is_desktop_connected": bridge_manager.is_client_connected
         }
     }
+
+
+# ─── Memory Bank Endpoints ──────────────────────────────────────────────
+
+class UpdateMemoryRequest(BaseModel):
+    user_id: str = Field(default="default_user", description="Identifier for the user or workspace")
+    preferences: Dict[str, Any] = Field(description="Dictionary of key-value preferences to update")
+
+
+@app.get("/memory")
+@app.get("/api/memory")
+def get_user_memory(user_id: str = "default_user") -> Dict[str, Any]:
+    """Retrieves stored user preferences and learned categories."""
+    return state_manager.get_user_memory(user_id=user_id)
+
+
+@app.post("/memory")
+@app.post("/api/memory")
+def save_user_memory(payload: UpdateMemoryRequest) -> Dict[str, Any]:
+    """Updates user preferences and learned categories in Memory Bank."""
+    state_manager.save_user_memory(user_id=payload.user_id, memory_data=payload.preferences)
+    return state_manager.get_user_memory(user_id=payload.user_id)
+
+
+@app.delete("/memory/{key}")
+@app.delete("/api/memory/{key}")
+def delete_memory_key(key: str, user_id: str = "default_user") -> Dict[str, Any]:
+    """Deletes a specific preference key from Memory Bank."""
+    return state_manager.delete_user_memory(user_id=user_id, key=key)
+
+
+@app.post("/memory/clear")
+@app.post("/api/memory/clear")
+def clear_user_memory(user_id: str = "default_user") -> Dict[str, Any]:
+    """Resets memory to baseline defaults."""
+    return state_manager.clear_user_memory(user_id=user_id)
 
 
 @app.websocket("/ws/bridge")
@@ -113,3 +156,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
+

@@ -94,10 +94,12 @@ class AgentBridgeClient extends EventEmitter {
 
   scheduleReconnect() {
     if (this.reconnectTimer) return;
+    this.reconnectAttempts = (this.reconnectAttempts || 0) + 1;
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 15000);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (this.autoConnect) this.connect();
-    }, 3000);
+    }, delay);
   }
 
   send(data) {
@@ -174,6 +176,40 @@ class AgentBridgeClient extends EventEmitter {
       const err = await res.text();
       throw new Error(`Failed to respond to task: ${err}`);
     }
+    return res.json();
+  }
+
+  async getMemory(userId = 'default_user') {
+    try {
+      const res = await fetch(`${this.agentHttpUrl}/memory?user_id=${encodeURIComponent(userId)}`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    } catch (error) {
+      return {
+        default_currency: 'USD',
+        preferred_export_format: 'csv',
+        learned_categories: ['Gym / Fitness', 'Travel / Flight', 'Travel / Lodging', 'Travel / Ground', 'Meals / Dining']
+      };
+    }
+  }
+
+  async saveMemory(preferences, userId = 'default_user') {
+    const res = await fetch(`${this.agentHttpUrl}/memory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, preferences }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async clearMemory(userId = 'default_user') {
+    const res = await fetch(`${this.agentHttpUrl}/memory/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
 

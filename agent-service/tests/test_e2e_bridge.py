@@ -19,7 +19,9 @@ async def desktop_tool_executor(tool, params):
 def test_full_bridge_tool_execution_flow():
     client = TestClient(app)
     original_executor = agent.async_tool_executor
+    original_mock = agent.mock_mode
     agent.async_tool_executor = desktop_tool_executor
+    agent.mock_mode = True
 
     try:
         with client.websocket_connect("/ws/bridge?client_id=desktop-e2e") as ws:
@@ -48,3 +50,4 @@ def test_full_bridge_tool_execution_flow():
             assert "expense_report_july_2026.csv" in final_data["artifacts"][0]["filename"]
     finally:
         agent.async_tool_executor = original_executor
+        agent.mock_mode = original_mock

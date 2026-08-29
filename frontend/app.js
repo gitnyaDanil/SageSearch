@@ -179,11 +179,26 @@ function updateLocalSettingsVisibility() {
 async function openSettings() {
   settingsError.textContent = '';
   try {
-    const settings = await fetch(`${API}/settings`).then((response) => response.json());
-    settingsForm.elements['provider-mode'].value = settings.provider.mode;
-    lmEndpoint.value = settings.provider.local.endpoint || 'http://localhost:1234';
-    lmModel.value = settings.provider.local.model || '';
-    updateLocalSettingsVisibility();
+    const [settings, memory] = await Promise.all([
+      fetch(`${API}/settings`).then((r) => r.json()).catch(() => null),
+      fetch(`${API}/agent/memory`).then((r) => r.json()).catch(() => null),
+    ]);
+
+    if (settings) {
+      settingsForm.elements['provider-mode'].value = settings.provider.mode;
+      lmEndpoint.value = settings.provider.local.endpoint || 'http://localhost:1234';
+      lmModel.value = settings.provider.local.model || '';
+      updateLocalSettingsVisibility();
+    }
+
+    if (memory) {
+      const curEl = document.getElementById('memory-currency');
+      const fmtEl = document.getElementById('memory-format');
+      if (curEl) curEl.value = memory.default_currency || 'USD';
+      if (fmtEl) fmtEl.value = memory.preferred_export_format || 'csv';
+    }
+
+    lucide.createIcons({ nodes: [settingsDialog] });
     settingsDialog.showModal();
   } catch {
     settingsError.textContent = 'Cannot load settings while the backend is offline.';
@@ -194,17 +209,34 @@ async function openSettings() {
 async function saveSettings(event) {
   event.preventDefault();
   settingsError.textContent = '';
-  const mode = settingsForm.elements['provider-mode'].value;
-  const response = await fetch(`${API}/settings/provider`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode, local: { endpoint: lmEndpoint.value, model: lmModel.value } }),
-  });
-  if (!response.ok) {
-    settingsError.textContent = (await response.json().catch(() => ({}))).error || 'Could not save settings.';
-    return;
+  try {
+    const mode = settingsForm.elements['provider-mode'].value;
+    const response = await fetch(`${API}/settings/provider`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, local: { endpoint: lmEndpoint.value, model: lmModel.value } }),
+    });
+    if (!response.ok) {
+      settingsError.textContent = (await response.json().catch(() => ({}))).error || 'Could not save settings.';
+      return;
+    }
+    const curVal = document.getElementById('memory-currency')?.value || 'USD';
+    const fmtVal = document.getElementById('memory-format')?.value || 'csv';
+    await fetch(`${API}/agent/memory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'default_user',
+        preferences: {
+          default_currency: curVal.trim().toUpperCase(),
+          preferred_export_format: fmtVal,
+        },
+      }),
+    }).catch(() => {});
+    settingsDialog.close();
+    checkLMStudioHealth();
+  } catch (err) {
+    settingsError.textContent = err.message || 'Error saving settings.';
   }
-  settingsDialog.close();
-  checkLMStudioHealth();
 }
 
 // ─── LM Studio Health Check ───────────────────────────────────────────────
@@ -577,10 +609,25 @@ function appendFileResults(files, moreResults = null) {
   header.className = 'results-header';
   header.innerHTML = `
     <i data-lucide="folder-open"></i>
-    Search Results
+    <span>Search Results</span>
+    <button class="continue-with-agent-btn" type="button" title="Delegate these files to Agent Mode for structured extraction & reports">
+      <i data-lucide="bot"></i>
+      <span>Continue with Agent</span>
+    </button>
     <span class="results-count">${files.length} file${files.length !== 1 ? 's' : ''} found</span>
   `;
   section.appendChild(header);
+
+  const continueBtn = header.querySelector('.continue-with-agent-btn');
+  if (continueBtn) {
+    continueBtn.addEventListener('click', () => {
+      const sampleNames = files.slice(0, 3).map(f => f.name).join(', ');
+      const goal = `Process the ${files.length} found files (${sampleNames}), extract key structured data, and create a summary report`;
+      switchMode('agent');
+      searchInput.value = goal;
+      startAgentGoal(goal);
+    });
+  }
 
   files.forEach((file, index) => {
     const card = buildFileCard(file, index);

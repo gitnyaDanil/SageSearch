@@ -20,7 +20,7 @@ def test_extracted_receipt_schema():
 
 
 def test_heuristic_extraction_gym_invoice():
-    extractor = StructuredFieldExtractor()
+    extractor = StructuredFieldExtractor(api_key=None, use_vertex=False)
     gym_text = """
     FITNESS FIRST CLUB MEMBERSHIP
     Invoice #: FF-99214
@@ -39,7 +39,7 @@ def test_heuristic_extraction_gym_invoice():
 
 
 def test_heuristic_extraction_hotel_folio():
-    extractor = StructuredFieldExtractor()
+    extractor = StructuredFieldExtractor(api_key=None, use_vertex=False)
     hotel_text = """
     HILTON GARDEN INN NYC
     Folio Number: 440981
@@ -56,6 +56,6 @@ def test_heuristic_extraction_hotel_folio():
 
 
 def test_heuristic_extraction_empty_text():
-    extractor = StructuredFieldExtractor()
+    extractor = StructuredFieldExtractor(api_key=None, use_vertex=False)
     res = extractor.extract_from_text("")
     assert res["status"] == "empty_content"

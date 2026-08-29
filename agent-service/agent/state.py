@@ -35,6 +35,7 @@ class TaskState(BaseModel):
     artifacts: List[Dict[str, Any]] = Field(default_factory=list)
     final_summary: Optional[str] = None
     error: Optional[str] = None
+    session_context: Optional[Dict[str, Any]] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -168,3 +169,32 @@ class TaskStateManager:
                 self.db.collection(self.memory_collection).document(user_id).set(current)
             except Exception as e:
                 print(f"[TaskStateManager] Firestore memory write error: {e}")
+
+    def delete_user_memory(self, user_id: str, key: str) -> Dict[str, Any]:
+        """Removes a specific preference or learned fact from memory."""
+        current = self.get_user_memory(user_id)
+        if key in current:
+            del current[key]
+            self._user_memory[user_id] = current
+            if self.use_firestore and self.db:
+                try:
+                    self.db.collection(self.memory_collection).document(user_id).set(current)
+                except Exception as e:
+                    print(f"[TaskStateManager] Firestore memory delete error: {e}")
+        return current
+
+    def clear_user_memory(self, user_id: str = "default_user") -> Dict[str, Any]:
+        """Resets user memory to baseline defaults."""
+        baseline = {
+            "default_currency": "USD",
+            "preferred_export_format": "csv",
+            "learned_categories": ["Gym / Fitness", "Travel / Flight", "Travel / Lodging", "Travel / Ground", "Meals / Dining"]
+        }
+        self._user_memory[user_id] = baseline
+        if self.use_firestore and self.db:
+            try:
+                self.db.collection(self.memory_collection).document(user_id).set(baseline)
+            except Exception as e:
+                print(f"[TaskStateManager] Firestore memory clear error: {e}")
+        return baseline
+

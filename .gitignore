@@ -8,6 +8,17 @@ node_modules/
 .env
 .env.*
 !.env.example
+agent-service/.env
+*.json.key
+*key*.json
+*secret*.json
+sagesearch-gcp-*.json
+gcp-key.json
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
 
 # Local editor and operating-system files
 .DS_Store

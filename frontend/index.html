@@ -202,8 +202,27 @@
       <label>Model (optional)<input id="lm-model" type="text" placeholder="Use LM Studio's first loaded model"></label>
       <p>In LM Studio, load a chat model and enable its local server in Developer settings.</p>
     </div>
+    <div class="settings-divider" style="margin: 16px 0; border-top: 1px solid var(--border-subtle);"></div>
+    <div class="memory-settings-section">
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+        <i data-lucide="brain"></i>
+        <span>Agent Memory Bank & Preferences</span>
+      </div>
+      <label style="display: block; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary);">
+        Default Currency
+        <input id="memory-currency" type="text" placeholder="USD" style="width: 100%; margin-top: 4px; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-normal); background: var(--bg-surface-md); color: var(--text-primary);">
+      </label>
+      <label style="display: block; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary);">
+        Preferred Export Format
+        <select id="memory-format" style="width: 100%; margin-top: 4px; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-normal); background: var(--bg-surface-md); color: var(--text-primary);">
+          <option value="csv">CSV Spreadsheet (.csv)</option>
+          <option value="markdown">Markdown Summary (.md)</option>
+          <option value="json">JSON Data (.json)</option>
+        </select>
+      </label>
+    </div>
     <p id="settings-error" class="settings-error" role="alert"></p>
-    <div class="settings-actions"><button id="settings-cancel-btn" type="button">Cancel</button><button class="primary-button" type="submit">Save provider</button></div>
+    <div class="settings-actions"><button id="settings-cancel-btn" type="button">Cancel</button><button class="primary-button" type="submit">Save settings</button></div>
   </form>
 </dialog>
 

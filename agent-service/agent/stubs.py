@@ -73,12 +73,54 @@ MOCK_FILES_DB = [
         )
     },
     {
-        "path": "C:/Users/Daniel/Documents/Work/project_spec.docx",
-        "name": "project_spec.docx",
+        "path": "C:/Users/Daniel/Documents/Invoices/contractor_invoice_acme.pdf",
+        "name": "contractor_invoice_acme.pdf",
+        "extension": "pdf",
+        "size": 156000,
+        "modified": "2026-07-20T16:00:00Z",
+        "content": (
+            "ACME CONSULTING LLC\n"
+            "Invoice #: INV-ACME-2026-08\n"
+            "Date: 2026-07-20\n"
+            "Due Date: 2026-08-05\n"
+            "Contractor: Alex Rivera\n"
+            "Services: Cloud Architecture Consulting (40 hrs)\n"
+            "Hourly Rate: $125.00\n"
+            "Total Balance Due: $5,000.00 USD\n"
+        )
+    },
+    {
+        "path": "C:/Users/Daniel/Documents/Work/project_spec_auth_v2.docx",
+        "name": "project_spec_auth_v2.docx",
         "extension": "docx",
         "size": 512000,
-        "modified": "2026-06-20T14:00:00Z",
-        "content": "Project specification and requirements documentation."
+        "modified": "2026-07-22T14:00:00Z",
+        "content": (
+            "PROJECT SPECIFICATION: User Authentication & SSO (v2.0)\n"
+            "Author: Daniel\n"
+            "Date: 2026-07-22\n"
+            "Status: Approved\n"
+            "Key Requirements:\n"
+            "1. Support OAuth 2.0 and Google Sign-In\n"
+            "2. Biometric passkey integration on Windows Hello\n"
+            "3. Multi-tenant RBAC with Firestore\n"
+        )
+    },
+    {
+        "path": "C:/Users/Daniel/Documents/Work/project_spec_offline_sync.docx",
+        "name": "project_spec_offline_sync.docx",
+        "extension": "docx",
+        "size": 420000,
+        "modified": "2026-07-24T10:30:00Z",
+        "content": (
+            "PROJECT SPECIFICATION: Offline Sync & SQLite Indexing (v1.2)\n"
+            "Author: Daniel\n"
+            "Date: 2026-07-24\n"
+            "Status: In Review\n"
+            "Key Requirements:\n"
+            "1. Native SQLite WAL mode\n"
+            "2. Periodic background delta synchronization\n"
+        )
     }
 ]
 
@@ -95,8 +137,17 @@ def stub_search_files(query: str, file_types: Optional[List[str]] = None, date_r
 
         text_corpus = (item["name"] + " " + item["content"]).lower()
         # Check matching
-        matches = any(k in text_corpus for k in keywords) or "receipt" in query.lower() or "expense" in query.lower()
-        if matches:
+        is_match = False
+        if any(k in text_corpus for k in keywords):
+            is_match = True
+        elif ("receipt" in query.lower() or "expense" in query.lower()) and ("receipt" in text_corpus or "pdf" in item["extension"]):
+            is_match = True
+        elif "spec" in query.lower() and ("spec" in text_corpus or "project" in text_corpus):
+            is_match = True
+        elif "contractor" in query.lower() and ("contractor" in text_corpus or "invoice" in text_corpus):
+            is_match = True
+
+        if is_match:
             results.append({
                 "path": item["path"],
                 "name": item["name"],

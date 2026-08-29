@@ -10,7 +10,9 @@ binding required secrets (GEMINI_API_KEY) from Google Secret Manager.
 param(
   [Parameter(Mandatory = $true)] [string] $Project,
   [string] $Region = 'us-west4',
-  [string] $Service = 'sagesearch-agent'
+  [string] $Service = 'sagesearch-agent',
+  [string] $Model = 'gemini-2.5-flash',
+  [switch] $UseFirestore
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +36,9 @@ if (-not [string]::IsNullOrWhiteSpace($env:GEMINI_API_KEY)) {
   $secretArg = ""
 }
 
-Write-Host "Deploying $Service to Google Cloud Run (Region: $Region, Project: $Project)..."
+$firestoreVal = if ($UseFirestore.IsPresent) { "true" } else { "false" }
+
+Write-Host "Deploying $Service to Google Cloud Run (Region: $Region, Project: $Project, Model: $Model)..."
 
 gcloud run deploy $Service `
   --project $Project `
@@ -43,7 +47,7 @@ gcloud run deploy $Service `
   --allow-unauthenticated `
   --max-instances 2 `
   --concurrency 20 `
-  --set-env-vars "GEMINI_MODEL=gemini-2.5-flash,GCP_PROJECT=$Project" `
+  --set-env-vars "GEMINI_MODEL=$Model,GCP_PROJECT=$Project,USE_FIRESTORE=$firestoreVal" `
   $secretArg
 
 if ($LASTEXITCODE -ne 0) { throw 'Cloud Run deployment failed.' }
