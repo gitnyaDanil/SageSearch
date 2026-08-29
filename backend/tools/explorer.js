@@ -1,32 +1,33 @@
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 /**
  * Open Windows Explorer with the file highlighted/selected.
- * Uses the native `explorer /select,"path"` command.
+ * Uses the native `explorer.exe /select,"path"` command.
  * @param {string} filePath - Absolute path to the file
  */
 function openInExplorer(filePath) {
   return new Promise((resolve) => {
-    if (!fs.existsSync(filePath)) {
-      return resolve({ success: false, error: 'File not found at path: ' + filePath });
+    if (!filePath || typeof filePath !== 'string') {
+      return resolve({ success: false, error: 'Path is required' });
     }
 
-    // Wrap in quotes to handle spaces in paths
-    const cmd = `explorer /select,"${filePath}"`;
+    const normalized = path.normalize(filePath);
+    if (!fs.existsSync(normalized)) {
+      return resolve({ success: false, error: 'File not found at path: ' + normalized });
+    }
 
-    exec(cmd, (error) => {
-      if (error) {
-        // Explorer sometimes returns a non-zero exit code even on success — check the error message
-        if (error.code === 1) {
-          // This is normal for explorer.exe on Windows
-          return resolve({ success: true, message: `Opened Explorer for: ${path.basename(filePath)}` });
-        }
-        return resolve({ success: false, error: error.message });
-      }
-      resolve({ success: true, message: `Opened Explorer for: ${path.basename(filePath)}` });
-    });
+    try {
+      const child = spawn('explorer.exe', [`/select,${normalized}`], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      resolve({ success: true, message: `Opened Explorer for: ${path.basename(normalized)}` });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
   });
 }
 
@@ -36,19 +37,25 @@ function openInExplorer(filePath) {
  */
 function openFile(filePath) {
   return new Promise((resolve) => {
-    if (!fs.existsSync(filePath)) {
-      return resolve({ success: false, error: 'File not found at path: ' + filePath });
+    if (!filePath || typeof filePath !== 'string') {
+      return resolve({ success: false, error: 'Path is required' });
     }
 
-    // `start ""` opens with the default associated app
-    const cmd = `start "" "${filePath}"`;
+    const normalized = path.normalize(filePath);
+    if (!fs.existsSync(normalized)) {
+      return resolve({ success: false, error: 'File not found at path: ' + normalized });
+    }
 
-    exec(cmd, { shell: 'cmd.exe' }, (error) => {
-      if (error) {
-        return resolve({ success: false, error: error.message });
-      }
-      resolve({ success: true, message: `Opened: ${path.basename(filePath)}` });
-    });
+    try {
+      const child = spawn('cmd.exe', ['/c', 'start', '""', normalized], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      resolve({ success: true, message: `Opened: ${path.basename(normalized)}` });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
   });
 }
 

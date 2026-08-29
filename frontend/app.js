@@ -925,14 +925,19 @@ function renderAgentTaskState(task) {
     `;
     lucide.createIcons({ nodes: [artifactContainer] });
 
-    if (artifact && artifact.saved_path) {
+    const artifactPath = artifact?.saved_path || artifact?.path;
+    if (artifactPath) {
       document.getElementById('open-artifact-btn')?.addEventListener('click', async () => {
         try {
-          await fetch(`${API}/open`, {
+          const res = await fetch(`${API}/open`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: artifact.saved_path, mode: 'explorer' })
+            body: JSON.stringify({ path: artifactPath, mode: 'explorer' })
           });
+          const result = await res.json();
+          if (!result.success && result.error) {
+            console.warn('Explorer notice:', result.error);
+          }
         } catch (e) {
           console.error('Error opening artifact:', e);
         }
