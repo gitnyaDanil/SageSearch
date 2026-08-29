@@ -9,7 +9,8 @@ import json
 
 DEMO_RECEIPTS = [
     {
-        "name": "fit_gym_july",
+        "name": "gym_membership_receipt",
+        "alt_name": "fit_gym_july",
         "date_iso": "2026-07-02T10:15:00",
         "timestamp": 1782987300, # July 2, 2026
         "content": (
@@ -26,7 +27,8 @@ DEMO_RECEIPTS = [
         )
     },
     {
-        "name": "delta_flight_nyc",
+        "name": "delta_flight_receipt",
+        "alt_name": "delta_flight_nyc",
         "date_iso": "2026-07-14T08:30:00",
         "timestamp": 1784017800, # July 14, 2026
         "content": (
@@ -42,7 +44,8 @@ DEMO_RECEIPTS = [
         )
     },
     {
-        "name": "hilton_hotel_nyc",
+        "name": "hilton_hotel_receipt",
+        "alt_name": "hilton_hotel_nyc",
         "date_iso": "2026-07-18T11:00:00",
         "timestamp": 1784372400, # July 18, 2026
         "content": (
@@ -57,7 +60,8 @@ DEMO_RECEIPTS = [
         )
     },
     {
-        "name": "uber_ride_july",
+        "name": "uber_ride_receipt",
+        "alt_name": "uber_ride_july",
         "date_iso": "2026-07-16T19:45:00",
         "timestamp": 1784231100, # July 16, 2026
         "content": (
@@ -71,7 +75,8 @@ DEMO_RECEIPTS = [
         )
     },
     {
-        "name": "starbucks_meeting",
+        "name": "starbucks_meeting_receipt",
+        "alt_name": "starbucks_meeting",
         "date_iso": "2026-07-16T09:30:00",
         "timestamp": 1784194200, # July 16, 2026
         "content": (
@@ -86,7 +91,8 @@ DEMO_RECEIPTS = [
         )
     },
     {
-        "name": "slack_subscription",
+        "name": "slack_subscription_invoice",
+        "alt_name": "slack_subscription",
         "date_iso": "2026-07-01T12:00:00",
         "timestamp": 1782907200, # July 1, 2026
         "content": (
@@ -110,23 +116,28 @@ def setup_demo_data():
     created_files = []
 
     for item in DEMO_RECEIPTS:
-        # Create .txt file
-        txt_path = os.path.join(target_dir, f"{item['name']}.txt")
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(item["content"])
-        os.utime(txt_path, (item["timestamp"], item["timestamp"]))
-        created_files.append((txt_path, f"{item['name']}.txt", ".txt", len(item["content"]), item["date_iso"]))
-        print(f"  + Created {item['name']}.txt (Modified: {item['date_iso']})")
+        names_to_create = [item["name"]]
+        if "alt_name" in item:
+            names_to_create.append(item["alt_name"])
 
-        # Also create .pdf mockup
-        pdf_path = os.path.join(target_dir, f"{item['name']}.pdf")
-        with open(pdf_path, "w", encoding="utf-8") as f:
-            f.write(f"%PDF-1.4 Mock Receipt Document\n{item['content']}")
-        os.utime(pdf_path, (item["timestamp"], item["timestamp"]))
-        created_files.append((pdf_path, f"{item['name']}.pdf", ".pdf", len(item["content"]) + 32, item["date_iso"]))
-        print(f"  + Created {item['name']}.pdf (Modified: {item['date_iso']})")
+        for base_name in names_to_create:
+            # Create .txt file
+            txt_path = os.path.join(target_dir, f"{base_name}.txt")
+            with open(txt_path, "w", encoding="utf-8") as f:
+                f.write(item["content"])
+            os.utime(txt_path, (item["timestamp"], item["timestamp"]))
+            created_files.append((txt_path, f"{base_name}.txt", ".txt", len(item["content"]), item["date_iso"]))
+            print(f"  + Created {base_name}.txt (Modified: {item['date_iso']})")
 
-    # Update SQLite database directly if present
+            # Create .pdf file
+            pdf_path = os.path.join(target_dir, f"{base_name}.pdf")
+            with open(pdf_path, "w", encoding="utf-8") as f:
+                f.write(f"%PDF-1.4 Mock Receipt Document\n{item['content']}")
+            os.utime(pdf_path, (item["timestamp"], item["timestamp"]))
+            created_files.append((pdf_path, f"{base_name}.pdf", ".pdf", len(item["content"]) + 32, item["date_iso"]))
+            print(f"  + Created {base_name}.pdf (Modified: {item['date_iso']})")
+
+    # Update SQLite database directly
     db_path = os.path.join(os.path.dirname(__file__), "backend", "data", "sagesearch.sqlite")
     if os.path.exists(db_path):
         try:
@@ -157,19 +168,7 @@ def setup_demo_data():
         except Exception as e:
             print(f"  (Direct SQLite update error: {e})")
 
-    # Notify backend if running via HTTP
-    try:
-        req = urllib.request.Request(
-            "http://localhost:3001/api/locations",
-            data=json.dumps({"name": "Demo Receipts", "path": target_dir}).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=2) as resp:
-            pass
-    except Exception:
-        pass
-
-    print("\nDemo receipt setup complete! Both Direct Search and Agent Mode are fully populated.")
+    print("\nDemo receipt setup complete! Direct Search and Agent Mode are fully synchronized.")
 
 
 if __name__ == "__main__":

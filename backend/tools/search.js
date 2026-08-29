@@ -237,10 +237,15 @@ class SearchIndex {
     const keywords = Array.isArray(filename_keywords)
       ? filename_keywords
       : keyword ? [keyword] : [];
-    for (const item of keywords.slice(0, 8)) {
-      if (typeof item !== 'string' || !item.trim()) continue;
-      where.push("LOWER(f.name) LIKE ? ESCAPE '\\'");
-      values.push(`%${item.trim().toLowerCase().replace(/[\\%_]/g, '\\$&')}%`);
+    for (const rawItem of keywords.slice(0, 8)) {
+      if (typeof rawItem !== 'string' || !rawItem.trim()) continue;
+      const item = rawItem.trim().toLowerCase();
+      const stemmed = (item.length > 3 && item.endsWith('s') && !item.endsWith('ss')) ? item.slice(0, -1) : item;
+      where.push("(LOWER(f.name) LIKE ? ESCAPE '\\' OR LOWER(f.name) LIKE ? ESCAPE '\\')");
+      values.push(
+        `%${item.replace(/[\\%_]/g, '\\$&')}%`,
+        `%${stemmed.replace(/[\\%_]/g, '\\$&')}%`
+      );
     }
     if (date_after && !Number.isNaN(Date.parse(date_after))) { where.push(`f.${field} >= ?`); values.push(new Date(date_after).toISOString()); }
     if (date_before && !Number.isNaN(Date.parse(date_before))) {
