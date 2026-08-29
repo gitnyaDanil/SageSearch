@@ -219,7 +219,7 @@ class SearchIndex {
     replace(rows);
   }
 
-  search({ folder, file_type, extensions, keyword, filename_keywords, date_after, date_before, date_field = 'modified', limit = 30 } = {}) {
+  search({ folder, file_type, extensions, keyword, filename_keywords, raw_query, date_after, date_before, date_field = 'modified', limit = 30 } = {}) {
     this.refreshLocationAvailability();
     const field = date_field === 'created' ? 'created_iso' : 'modified_iso';
     const where = [];
@@ -237,6 +237,8 @@ class SearchIndex {
     const keywords = Array.isArray(filename_keywords)
       ? filename_keywords
       : keyword ? [keyword] : [];
+    const scoreClauses = [];
+    const scoreValues = [];
     for (const rawItem of keywords.slice(0, 8)) {
       if (typeof rawItem !== 'string' || !rawItem.trim()) continue;
       const item = rawItem.trim().toLowerCase();
@@ -246,7 +248,21 @@ class SearchIndex {
         `%${item.replace(/[\\%_]/g, '\\$&')}%`,
         `%${stemmed.replace(/[\\%_]/g, '\\$&')}%`
       );
+      scoreClauses.push("(CASE WHEN LOWER(f.name) LIKE ? THEN 100 ELSE 0 END + CASE WHEN LOWER(f.name) LIKE ? THEN 50 ELSE 0 END)");
+      scoreValues.push(`%${item}%`, `%${stemmed}%`);
     }
+
+    // If keywords were not parsed by AI, extract key tokens from raw_query for ranking
+    if (!scoreClauses.length && typeof raw_query === 'string' && raw_query.trim()) {
+      const STOP_WORDS = new Set(['find', 'show', 'me', 'all', 'in', 'the', 'folder', 'file', 'files', 'from', 'last', 'month', 'this', 'yesterday', 'today', 'get', 'look', 'for', 'search', 'give', 'document', 'documents']);
+      const tokens = raw_query.toLowerCase().replace(/[^a-z0-9\s_-]/g, ' ').split(/\s+/).filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
+      for (const token of tokens.slice(0, 5)) {
+        const stemmed = (token.length > 3 && token.endsWith('s') && !token.endsWith('ss')) ? token.slice(0, -1) : token;
+        scoreClauses.push("(CASE WHEN LOWER(f.name) LIKE ? THEN 100 ELSE 0 END + CASE WHEN LOWER(f.name) LIKE ? THEN 50 ELSE 0 END)");
+        scoreValues.push(`%${token}%`, `%${stemmed}%`);
+      }
+    }
+
     if (date_after && !Number.isNaN(Date.parse(date_after))) { where.push(`f.${field} >= ?`); values.push(new Date(date_after).toISOString()); }
     if (date_before && !Number.isNaN(Date.parse(date_before))) {
       where.push(`f.${field} <= ?`);
@@ -258,13 +274,14 @@ class SearchIndex {
       values.push(needle, needle, needle);
     }
     const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 30, 1), 200);
+    const scoreOrderBy = scoreClauses.length ? `(${scoreClauses.join(' + ')}) DESC, ` : '';
     const query = `
       SELECT f.*, l.name AS source_location, l.path AS source_path, l.status AS location_status
       FROM files f JOIN locations l ON l.id = f.location_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY f.${field} DESC LIMIT ?
+      ORDER BY ${scoreOrderBy} f.${field} DESC LIMIT ?
     `;
-    const result = this.db.prepare(query).all(...values, safeLimit);
+    const result = this.db.prepare(query).all(...values, ...scoreValues, safeLimit);
     return result.map((file) => ({
       name: file.name, path: file.full_path, folder: file.folder, extension: file.extension,
       category: file.category, size_bytes: file.size_bytes, size_readable: formatSize(file.size_bytes),

@@ -112,7 +112,7 @@ function contextualNote(interpretation) {
   return notes.join(' ');
 }
 
-function runLocalSearch(interpretation, limit = MAX_RESULTS + 1) {
+function runLocalSearch(interpretation, rawQuery = '', limit = MAX_RESULTS + 1) {
   return searchDocuments({
     file_type: interpretation.filters.fileType,
     extensions: interpretation.filters.extensions,
@@ -121,6 +121,7 @@ function runLocalSearch(interpretation, limit = MAX_RESULTS + 1) {
     date_field: interpretation.filters.dateField,
     date_after: interpretation.filters.dateAfter,
     date_before: interpretation.filters.dateBefore,
+    raw_query: rawQuery,
     // Fetch one extra record to decide whether the result set needs narrowing.
     limit,
   });
@@ -195,7 +196,7 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const localResults = runLocalSearch(interpretation);
+  const localResults = runLocalSearch(interpretation, query);
   const filterText = filterSummary(interpretation.filters).join('; ');
   if (localResults.length > MAX_RESULTS) {
     return res.json({
