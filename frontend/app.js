@@ -39,7 +39,8 @@ const lmEndpoint = document.getElementById('lm-endpoint');
 const lmModel = document.getElementById('lm-model');
 const settingsError = document.getElementById('settings-error');
 
-// Agent Mode DOM References
+// Theme & Agent Mode DOM References
+const themeToggleBtn  = document.getElementById('theme-toggle-btn');
 const modeSearchBtn   = document.getElementById('mode-search-btn');
 const modeAgentBtn    = document.getElementById('mode-agent-btn');
 const searchView      = document.getElementById('search-view');
@@ -48,12 +49,14 @@ const agentWelcome    = document.getElementById('agent-welcome');
 const agentWorkflow   = document.getElementById('agent-workflow');
 const inputHint       = document.getElementById('input-hint');
 
+const THEME_KEY = 'sagesearch_theme';
 let currentMode = 'search';
 let activeAgentTaskId = null;
 
 // ─── Initialization ───────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   lucide.createIcons();
   checkLMStudioHealth();
   loadFolders();
@@ -62,9 +65,43 @@ document.addEventListener('DOMContentLoaded', () => {
   searchInput.focus();
 });
 
+function initTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+  applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    if (themeToggleBtn) {
+      themeToggleBtn.innerHTML = '<i data-lucide="moon"></i>';
+      themeToggleBtn.title = 'Switch to Dark Mode';
+    }
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    if (themeToggleBtn) {
+      themeToggleBtn.innerHTML = '<i data-lucide="sun"></i>';
+      themeToggleBtn.title = 'Switch to Light Mode';
+    }
+  }
+  lucide.createIcons();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const nextTheme = current === 'light' ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, nextTheme);
+  applyTheme(nextTheme);
+}
+
 // ─── Event Bindings ───────────────────────────────────────────────────────
 
 function bindEvents() {
+  // Theme toggle
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
   // Mode switcher tabs
   if (modeSearchBtn && modeAgentBtn) {
     modeSearchBtn.addEventListener('click', () => switchMode('search'));
