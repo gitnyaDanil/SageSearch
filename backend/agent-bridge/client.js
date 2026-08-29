@@ -138,9 +138,23 @@ class AgentBridgeClient extends EventEmitter {
       this.emit('tool_executed', { tool, params, result, error });
     } else if (type === 'approval_request') {
       this.emit('approval_request', msg);
-    } else if (type === 'step_started' || type === 'step_completed' || type === 'task_completed') {
+    } else if (type === 'step_started' || type === 'step_completed' || type === 'task_completed' || type === 'task_failed') {
       this.emit(type, msg);
     }
+  }
+
+  async getTask(taskId) {
+    let res;
+    try {
+      res = await fetch(`${this.agentHttpUrl}/tasks/${encodeURIComponent(taskId)}`);
+    } catch (error) {
+      throw new Error(`Agent service unavailable at ${this.agentHttpUrl}. (${error.message})`);
+    }
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Failed to get task: ${err}`);
+    }
+    return res.json();
   }
 
   async startTask(goal, autoApprove = false) {

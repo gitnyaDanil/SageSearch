@@ -311,6 +311,54 @@ app.post('/api/agent/memory/clear', async (req, res) => {
   }
 });
 
+// Real-time live event streaming from Agent Bridge to browser UI via Server-Sent Events (SSE)
+app.get('/api/agent/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  const sendEvent = (eventType, data) => {
+    res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Heartbeat to keep connection alive
+  const heartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 15000);
+
+  const onStepStarted = (data) => sendEvent('step_started', data);
+  const onStepCompleted = (data) => sendEvent('step_completed', data);
+  const onApprovalRequest = (data) => sendEvent('approval_request', data);
+  const onTaskCompleted = (data) => sendEvent('task_completed', data);
+  const onTaskFailed = (data) => sendEvent('task_failed', data);
+
+  agentBridge.on('step_started', onStepStarted);
+  agentBridge.on('step_completed', onStepCompleted);
+  agentBridge.on('approval_request', onApprovalRequest);
+  agentBridge.on('task_completed', onTaskCompleted);
+  agentBridge.on('task_failed', onTaskFailed);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    agentBridge.off('step_started', onStepStarted);
+    agentBridge.off('step_completed', onStepCompleted);
+    agentBridge.off('approval_request', onApprovalRequest);
+    agentBridge.off('task_completed', onTaskCompleted);
+    agentBridge.off('task_failed', onTaskFailed);
+  });
+});
+
+app.get('/api/agent/tasks/:taskId', async (req, res) => {
+  try {
+    const task = await agentBridge.getTask(req.params.taskId);
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/agent/start', async (req, res) => {
   try {
     const { goal, autoApprove = false } = req.body || {};

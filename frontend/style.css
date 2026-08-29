@@ -1344,6 +1344,50 @@ html, body {
   100% { box-shadow: 0 0 0 rgba(79, 130, 245, 0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin,
+.lucide-loader,
+.lucide-loader-2,
+.step-item.in_progress .step-icon svg,
+.approval-btn-group svg.lucide-loader,
+.approval-btn-group svg.lucide-loader-2,
+.artifact-action-btn svg.lucide-loader,
+.finalizing-status svg {
+  animation: spin 0.9s linear infinite !important;
+}
+
+.timeline-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border-subtle);
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 8px;
+}
+
+.timeline-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.timeline-progress-bar.indeterminate .timeline-progress-bar-fill {
+  width: 35%;
+  position: absolute;
+  animation: indeterminateBar 1.4s infinite linear;
+}
+
+@keyframes indeterminateBar {
+  0% { left: -35%; }
+  100% { left: 100%; }
+}
+
 .step-icon {
   width: 22px;
   height: 22px;

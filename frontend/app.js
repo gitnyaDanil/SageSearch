@@ -765,6 +765,201 @@ function buildFileCard(file, index) {
         body:    JSON.stringify({ path: file.path }),
       });
       const data = await res.json();
+}
+
+// Typing animation while AI is working
+function appendTypingIndicator() {
+  const id  = `typing-${Date.now()}`;
+  const row = document.createElement('div');
+  row.className = 'message-row';
+  row.id = id;
+  row.innerHTML = `
+    <div class="avatar avatar-ai"><i data-lucide="search"></i></div>
+    <div class="message-bubble ai-bubble">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  messagesEl.appendChild(row);
+  lucide.createIcons({ nodes: [row] });
+  scrollToBottom();
+  return id;
+}
+
+function removeTypingIndicator(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ─── File Results Rendering ───────────────────────────────────────────────
+
+function appendFileResults(files, moreResults = null) {
+  const section = document.createElement('div');
+  section.className = 'results-section';
+
+  const header = document.createElement('div');
+  header.className = 'results-header';
+  header.innerHTML = `
+    <i data-lucide="folder-open"></i>
+    <span>Search Results</span>
+    <button class="continue-with-agent-btn" type="button" title="Delegate these files to Agent Mode for structured extraction & reports">
+      <i data-lucide="bot"></i>
+      <span>Continue with Agent</span>
+    </button>
+    <span class="results-count">${files.length} file${files.length !== 1 ? 's' : ''} found</span>
+  `;
+  section.appendChild(header);
+
+  const continueBtn = header.querySelector('.continue-with-agent-btn');
+  if (continueBtn) {
+    continueBtn.addEventListener('click', () => {
+      const sampleNames = files.slice(0, 3).map(f => f.name).join(', ');
+      const goal = `Process the ${files.length} found files (${sampleNames}), extract key structured data, and create a summary report`;
+      switchMode('agent');
+      searchInput.value = goal;
+      startAgentGoal(goal);
+    });
+  }
+
+  files.forEach((file, index) => {
+    const card = buildFileCard(file, index);
+    section.appendChild(card);
+  });
+
+  if (moreResults?.interpretation) {
+    const actions = document.createElement('div');
+    actions.className = 'results-actions';
+    const showAllButton = document.createElement('button');
+    showAllButton.type = 'button';
+    showAllButton.className = 'show-all-results-btn';
+    showAllButton.innerHTML = '<i data-lucide="list"></i> Show all matches';
+    showAllButton.addEventListener('click', () => showAllMatches({
+      button: showAllButton,
+      section,
+      header,
+      previewCount: files.length,
+      interpretation: moreResults.interpretation,
+    }));
+    actions.appendChild(showAllButton);
+    section.appendChild(actions);
+  }
+
+  messagesEl.appendChild(section);
+  lucide.createIcons({ nodes: [section] });
+  scrollToBottom();
+}
+
+async function showAllMatches({ button, section, header, previewCount, interpretation }) {
+  button.disabled = true;
+  button.innerHTML = '<i data-lucide="loader-circle"></i> Loading matches…';
+  lucide.createIcons({ nodes: [button] });
+
+  try {
+    const response = await fetch(`${API}/results`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interpretation }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not load the remaining matches.');
+
+    data.files.slice(previewCount).forEach((file, index) => {
+      section.insertBefore(buildFileCard(file, previewCount + index), button.parentElement);
+    });
+    const count = data.files.length;
+    header.querySelector('.results-count').textContent = data.mayHaveMore
+      ? `${count} newest files shown — refine to see more`
+      : `${count} file${count !== 1 ? 's' : ''} found`;
+    button.parentElement.remove();
+    lucide.createIcons({ nodes: [section] });
+    scrollToBottom();
+  } catch (error) {
+    button.disabled = false;
+    button.innerHTML = '<i data-lucide="refresh-cw"></i> Try showing all again';
+    lucide.createIcons({ nodes: [button] });
+    appendErrorMessage(error.message);
+  }
+}
+
+function buildFileCard(file, index) {
+  const cat     = file.category || 'other';
+  const icon    = CATEGORY_ICON[cat] || 'file';
+  const ext     = (file.extension || '').replace('.', '').toUpperCase() || 'FILE';
+  const cardId  = `file-card-${index}-${Date.now()}`;
+
+  const card = document.createElement('div');
+  card.className = `file-card${file.available === false ? ' file-unavailable' : ''}`;
+  card.id = cardId;
+
+  card.innerHTML = `
+    <div class="file-icon cat-${cat}">
+      <i data-lucide="${icon}"></i>
+    </div>
+
+    <div class="file-info">
+      <div class="file-name" title="${escHtml(file.name)}">
+        ${escHtml(file.name)}
+      </div>
+      <div class="file-path" title="${escHtml(file.folder)}">
+        ${escHtml(file.folder)}
+      </div>
+      <div class="file-meta">
+        <span class="file-meta-item">
+          <i data-lucide="calendar"></i>
+          ${escHtml(file.modified_readable)}
+        </span>
+        <span class="file-meta-item">
+          <i data-lucide="hard-drive"></i>
+          ${escHtml(file.size_readable)}
+        </span>
+        <span class="ext-badge cat-${cat}">${escHtml(ext)}</span>
+        ${file.available === false ? '<span class="availability-badge"><i data-lucide="hard-drive-off"></i> Unavailable</span>' : ''}
+      </div>
+    </div>
+
+    <div class="file-actions">
+      <button class="btn-icon copy-path-btn" title="Copy path" data-path="${escHtml(file.path)}">
+        <i data-lucide="copy"></i>
+      </button>
+      <button class="btn-open open-explorer-btn" data-path="${escHtml(file.path)}" ${file.available === false ? 'disabled title="Reconnect the source drive to open this file"' : ''}>
+        <i data-lucide="folder-open"></i>
+        Show in Explorer
+      </button>
+    </div>
+  `;
+
+  // Copy path button
+  card.querySelector('.copy-path-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(file.path);
+    const btn = e.currentTarget;
+    btn.innerHTML = '<i data-lucide="check"></i>';
+    lucide.createIcons({ nodes: [btn] });
+    setTimeout(() => {
+      btn.innerHTML = '<i data-lucide="copy"></i>';
+      lucide.createIcons({ nodes: [btn] });
+    }, 1500);
+  });
+
+  // Open in Explorer button
+  card.querySelector('.open-explorer-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (file.available === false) return;
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader"></i> Opening…';
+    lucide.createIcons({ nodes: [btn] });
+
+    try {
+      const res  = await fetch(`${API}/open`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ path: file.path }),
+      });
+      const data = await res.json();
 
       if (data.success) {
         btn.innerHTML = '<i data-lucide="check"></i> Opened';
@@ -817,10 +1012,170 @@ function escHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// ─── Agent Mode Controller ───────────────────────────────────────────────
+// ─── Agent Mode Controller & Real-Time Event Stream ───────────────────────
+
+let agentEventSource = null;
+let currentTaskSteps = new Map();
+
+function setupAgentEventStream() {
+  if (agentEventSource) return;
+  try {
+    agentEventSource = new EventSource(`${API}/agent/events`);
+
+    agentEventSource.addEventListener('step_started', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        handleLiveStepStarted(data);
+      } catch (err) {
+        console.error('[SSE] step_started error:', err);
+      }
+    });
+
+    agentEventSource.addEventListener('step_completed', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        handleLiveStepCompleted(data);
+      } catch (err) {
+        console.error('[SSE] step_completed error:', err);
+      }
+    });
+
+    agentEventSource.addEventListener('approval_request', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        handleLiveApprovalRequest(data);
+      } catch (err) {
+        console.error('[SSE] approval_request error:', err);
+      }
+    });
+
+    agentEventSource.addEventListener('task_completed', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.state) renderAgentTaskState(data.state);
+      } catch (err) {
+        console.error('[SSE] task_completed error:', err);
+      }
+    });
+
+    agentEventSource.addEventListener('task_failed', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.state) renderAgentTaskState(data.state);
+      } catch (err) {
+        console.error('[SSE] task_failed error:', err);
+      }
+    });
+
+    agentEventSource.onerror = () => {
+      // Reconnect will happen automatically by EventSource
+    };
+  } catch (err) {
+    console.warn('[SSE] EventSource init failed:', err);
+  }
+}
+
+function handleLiveStepStarted(data) {
+  const step = data.step;
+  if (!step) return;
+
+  const stepsContainer = document.getElementById('steps-container');
+  if (!stepsContainer) return;
+
+  // Remove placeholder planning step if present
+  const placeholder = document.getElementById('step-placeholder-planning');
+  if (placeholder) placeholder.remove();
+
+  // Check if step already rendered
+  let stepEl = document.getElementById(`step-item-${step.step_index}`);
+  if (!stepEl) {
+    stepEl = document.createElement('div');
+    stepEl.id = `step-item-${step.step_index}`;
+    stepEl.className = 'step-item in_progress';
+    stepEl.innerHTML = `
+      <div class="step-icon">
+        <i data-lucide="loader-2" class="spin"></i>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Step ${step.step_index}: ${escHtml(step.title || 'Executing tool')}</div>
+        ${step.tool_name ? `<span class="step-tool-badge"><i data-lucide="wrench"></i> ${escHtml(step.tool_name)}</span>` : ''}
+      </div>
+    `;
+    stepsContainer.appendChild(stepEl);
+    lucide.createIcons({ nodes: [stepEl] });
+    stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function handleLiveStepCompleted(data) {
+  const stepIndex = data.step_index;
+  if (!stepIndex) return;
+
+  const stepEl = document.getElementById(`step-item-${stepIndex}`);
+  if (stepEl) {
+    stepEl.className = 'step-item completed';
+    const iconContainer = stepEl.querySelector('.step-icon');
+    if (iconContainer) {
+      iconContainer.innerHTML = '<i data-lucide="check"></i>';
+      lucide.createIcons({ nodes: [iconContainer] });
+    }
+  }
+}
+
+function handleLiveApprovalRequest(data) {
+  const approvalContainer = document.getElementById('agent-approval-container');
+  if (!approvalContainer || !data.preview_data) return;
+
+  // Stop indeterminate progress animation
+  const progressBar = document.getElementById('agent-progress-bar');
+  if (progressBar) progressBar.classList.remove('indeterminate');
+
+  const { columns = [], rows = [], summary = {} } = data.preview_data;
+  approvalContainer.innerHTML = `
+    <div class="preview-card">
+      <div class="preview-header">
+        <h3><i data-lucide="table"></i> Extracted Data Preview</h3>
+        <div class="metric-pills">
+          <span class="pill"><i data-lucide="file-check"></i> ${summary.total_receipts || rows.length} Items</span>
+          <span class="pill highlight"><i data-lucide="dollar-sign"></i> Total: ${summary.total_expense || summary.total_balance_due || '$0.00'}</span>
+        </div>
+      </div>
+
+      <div class="preview-table-container">
+        <table class="preview-table">
+          <thead>
+            <tr>${columns.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row => `<tr>${row.map(cell => `<td>${escHtml(String(cell))}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="approval-prompt-box">
+        <div class="approval-prompt-text">${escHtml(data.prompt || 'Found matching records. Proceed to generate output CSV?')}</div>
+        <div class="approval-btn-group">
+          <button class="btn-approve" id="approve-task-btn" type="button">
+            <i data-lucide="check"></i> Approve & Generate CSV
+          </button>
+          <button class="btn-cancel" id="cancel-task-btn" type="button">
+            <i data-lucide="x"></i> Cancel Task
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  lucide.createIcons({ nodes: [approvalContainer] });
+
+  document.getElementById('approve-task-btn')?.addEventListener('click', () => handleTaskApproval(data.task_id, true));
+  document.getElementById('cancel-task-btn')?.addEventListener('click', () => handleTaskApproval(data.task_id, false));
+  approvalContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 async function startAgentGoal(goalText) {
   if (!goalText || !goalText.trim()) return;
+
+  setupAgentEventStream();
 
   if (agentWelcome) agentWelcome.hidden = true;
   if (agentWorkflow) {
@@ -830,7 +1185,7 @@ async function startAgentGoal(goalText) {
         <i data-lucide="bot"></i>
         <div>
           <div class="goal-text">${escHtml(goalText)}</div>
-          <div class="goal-sub">Orchestrating multi-step workflow with Google Gemini</div>
+          <div class="goal-sub">Orchestrating multi-step workflow with Google Gemini 3.7</div>
         </div>
       </div>
 
@@ -838,9 +1193,12 @@ async function startAgentGoal(goalText) {
         <div class="timeline-header">
           <span class="timeline-title">Plan & Progress</span>
         </div>
-        <div id="steps-container">
-          <div class="step-item in_progress">
-            <div class="step-icon"><i data-lucide="loader"></i></div>
+        <div class="timeline-progress-bar indeterminate" id="agent-progress-bar">
+          <div class="timeline-progress-bar-fill"></div>
+        </div>
+        <div id="steps-container" style="margin-top: 10px;">
+          <div class="step-item in_progress" id="step-placeholder-planning">
+            <div class="step-icon"><i data-lucide="loader-2" class="spin"></i></div>
             <div class="step-content">
               <div class="step-title">Formulating autonomous execution plan...</div>
             </div>
@@ -888,10 +1246,11 @@ function renderAgentTaskState(task) {
     task.steps.forEach((step) => {
       const isDone = step.status === 'completed';
       const div = document.createElement('div');
+      div.id = `step-item-${step.step_index}`;
       div.className = `step-item ${step.status}`;
       div.innerHTML = `
         <div class="step-icon">
-          <i data-lucide="${isDone ? 'check' : 'loader'}"></i>
+          <i data-lucide="${isDone ? 'check' : 'loader-2'}" class="${isDone ? '' : 'spin'}"></i>
         </div>
         <div class="step-content">
           <div class="step-title">Step ${step.step_index}: ${escHtml(step.title)}</div>
@@ -901,6 +1260,15 @@ function renderAgentTaskState(task) {
       stepsContainer.appendChild(div);
     });
     lucide.createIcons({ nodes: [stepsContainer] });
+  }
+
+  const progressBar = document.getElementById('agent-progress-bar');
+  if (progressBar) {
+    if (task.status === 'completed' || task.status === 'waiting_approval') {
+      progressBar.classList.remove('indeterminate');
+      const fill = progressBar.querySelector('.timeline-progress-bar-fill');
+      if (fill) fill.style.width = task.status === 'completed' ? '100%' : '80%';
+    }
   }
 
   // Render Preview & Approval
@@ -914,7 +1282,7 @@ function renderAgentTaskState(task) {
             <h3><i data-lucide="table"></i> Extracted Data Preview</h3>
             <div class="metric-pills">
               <span class="pill"><i data-lucide="file-check"></i> ${summary.total_receipts || rows.length} Items</span>
-              <span class="pill highlight"><i data-lucide="dollar-sign"></i> Total: ${summary.total_expense || '$0.00'}</span>
+              <span class="pill highlight"><i data-lucide="dollar-sign"></i> Total: ${summary.total_expense || summary.total_balance_due || '$0.00'}</span>
             </div>
           </div>
 
@@ -995,7 +1363,7 @@ function renderAgentTaskState(task) {
           e.preventDefault();
           e.stopPropagation();
           const originalHTML = btn.innerHTML;
-          btn.innerHTML = '<i data-lucide="loader"></i> <span>Opening Explorer…</span>';
+          btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> <span>Opening Explorer…</span>';
           lucide.createIcons({ nodes: [btn] });
 
           try {
@@ -1032,9 +1400,36 @@ function renderAgentTaskState(task) {
 async function handleTaskApproval(taskId, approved) {
   const btnGroup = document.querySelector('.approval-btn-group');
   if (btnGroup) {
-    btnGroup.innerHTML = '<span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="loader"></i> Finalizing task...</span>';
-    lucide.createIcons();
+    btnGroup.innerHTML = `
+      <div class="finalizing-status" style="color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 6px 0;">
+        <i data-lucide="loader-2" class="spin"></i>
+        <span>Generating CSV artifact & saving to disk...</span>
+      </div>
+    `;
+    lucide.createIcons({ nodes: [btnGroup] });
   }
+
+  // Add in-progress step to the timeline
+  const stepsContainer = document.getElementById('steps-container');
+  if (stepsContainer && approved) {
+    const finalStep = document.createElement('div');
+    finalStep.id = 'step-generating-artifact';
+    finalStep.className = 'step-item in_progress';
+    finalStep.innerHTML = `
+      <div class="step-icon"><i data-lucide="loader-2" class="spin"></i></div>
+      <div class="step-content">
+        <div class="step-title">Generating output artifact file...</div>
+        <span class="step-tool-badge"><i data-lucide="wrench"></i> create_artifact</span>
+      </div>
+    `;
+    stepsContainer.appendChild(finalStep);
+    lucide.createIcons({ nodes: [finalStep] });
+    finalStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Start animated progress bar
+  const progressBar = document.getElementById('agent-progress-bar');
+  if (progressBar) progressBar.classList.add('indeterminate');
 
   try {
     const res = await fetch(`${API}/agent/respond`, {
@@ -1052,7 +1447,9 @@ async function handleTaskApproval(taskId, approved) {
   }
 }
 
-// ─── Periodic health recheck (every 30s) ─────────────────────────────────
+// ─── Periodic health recheck (every 30s) & Live SSE Init ─────────────────
+setupAgentEventStream();
+
 setInterval(() => {
   checkLMStudioHealth();
   loadFolders();
