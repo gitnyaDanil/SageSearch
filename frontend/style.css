@@ -213,6 +213,7 @@ html, body {
   border-right: 1px solid var(--border-subtle);
   overflow-y: auto;
   overflow-x: hidden;
+  padding-bottom: 16px;
 }
 
 .sidebar-section {
@@ -363,21 +364,6 @@ html, body {
   color: var(--text-muted);
 }
 .folder-item.location-disconnected .location-status { color: #f5534f; }
-}
-
-/* Sidebar footer */
-.sidebar-footer {
-  margin-top: auto;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.sidebar-footer svg { width: 13px; height: 13px; flex-shrink: 0; color: #3fc97b; }
 
 .sidebar-folders { flex: 1; }
 
@@ -813,7 +799,7 @@ html, body {
 
 /* ─── Input Area ─────────────────────────────────────────────────────────── */
 #input-area {
-  padding: 12px 24px 16px;
+  padding: 14px 24px;
   border-top: 1px solid var(--border-subtle);
   background: rgba(11, 13, 19, 0.7);
   backdrop-filter: blur(16px);
@@ -868,22 +854,6 @@ html, body {
 #send-btn:disabled { background: var(--bg-surface-hi); color: var(--text-muted); cursor: not-allowed; transform: none; }
 
 #send-btn svg { width: 16px; height: 16px; }
-
-.input-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: center;
-  margin-top: 8px;
-}
-
-.input-hint kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  border: 1px solid var(--border-normal);
-  border-radius: 4px;
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-}
 
 /* ─── Error / Toast ──────────────────────────────────────────────────────── */
 .error-banner {

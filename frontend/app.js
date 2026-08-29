@@ -121,7 +121,7 @@ function switchMode(mode) {
     agentView.hidden = true;
     agentView.classList.remove('active');
     searchInput.placeholder = "Describe what you're looking for…";
-    inputHint.innerHTML = "SageSearch starts a new search each time you press <kbd>Enter</kbd> &middot; File metadata stays on your device";
+    if (inputHint) inputHint.innerHTML = "SageSearch starts a new search each time you press <kbd>Enter</kbd> &middot; File metadata stays on your device";
   } else {
     modeAgentBtn.classList.add('active');
     modeSearchBtn.classList.remove('active');
@@ -130,7 +130,7 @@ function switchMode(mode) {
     searchView.hidden = true;
     searchView.classList.remove('active');
     searchInput.placeholder = "Describe an autonomous goal (e.g. Find receipts and create expense CSV)…";
-    inputHint.innerHTML = "Taskmaster Agent plans & executes multi-step file workflows with Google Gemini";
+    if (inputHint) inputHint.innerHTML = "Taskmaster Agent plans & executes multi-step file workflows with Google Gemini";
   }
   searchInput.focus();
 }
