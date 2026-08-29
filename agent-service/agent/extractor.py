@@ -116,17 +116,19 @@ class StructuredFieldExtractor:
 
         # 2. Extract Amount
         amount_patterns = [
-            r"(?:TOTAL|TOTAL PAID|AMOUNT CHARGED|TOTAL AMOUNT CHARGED|TOTAL CHARGED|FARE)[\s:]*\$?([0-9]+(?:\.[0-9]{2})?)",
-            r"\$([0-9]+\.[0-9]{2})"
+            r"(?:TOTAL PAID|TOTAL AMOUNT CHARGED|TOTAL AMOUNT|AMOUNT CHARGED|TOTAL CHARGED|TOTAL|FARE|SUBTOTAL)[\s:]*\$?([0-9]+(?:\.[0-9]{2})?)",
+            r"\$([0-9]+\.[0-9]{2})",
+            r"([0-9]+\.[0-9]{2})\s*(?:USD|DOLLARS)"
         ]
         for pat in amount_patterns:
             matches = re.findall(pat, text_upper)
             if matches:
                 # take the largest amount found (often total)
                 try:
-                    amounts = [float(m) for m in matches]
-                    amount = max(amounts)
-                    break
+                    amounts = [float(m) for m in matches if float(m) > 0]
+                    if amounts:
+                        amount = max(amounts)
+                        break
                 except ValueError:
                     pass
 

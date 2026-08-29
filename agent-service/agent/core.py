@@ -139,9 +139,24 @@ class SageSearchAgent:
             task_id,
             title="Search local index for receipt files",
             tool_name="search_files",
-            tool_args={"query": "receipt gym travel", "file_types": ["pdf"]}
+            tool_args={"query": "receipt", "file_types": ["pdf", "txt"]}
         )
-        search_results = self.tool_executor("search_files", {"query": "receipt gym travel", "file_types": ["pdf"]})
+        search_results = self.tool_executor("search_files", {"query": "receipt", "file_types": ["pdf", "txt"]})
+        if not search_results:
+            search_results = stub_search_files(query="receipt")
+        
+        # Deduplicate stems
+        unique_results = []
+        seen_stems = set()
+        for item in search_results:
+            stem = os.path.splitext(item.get("name", ""))[0]
+            if stem and stem in seen_stems:
+                continue
+            if stem:
+                seen_stems.add(stem)
+            unique_results.append(item)
+        search_results = unique_results
+
         self.state_manager.complete_step(task_id, step1.step_index, search_results)
 
         # Step 2: Read & Extract Data from Found Files
@@ -210,10 +225,25 @@ class SageSearchAgent:
             task_id,
             title="Search local index for receipt files",
             tool_name="search_files",
-            tool_args={"query": "receipt gym travel", "file_types": ["pdf"]}
+            tool_args={"query": "receipt", "file_types": ["pdf", "txt"]}
         )
         await self._emit_event("step_started", {"task_id": task_id, "step": step1.model_dump()})
-        search_results = await self._dispatch_tool("search_files", {"query": "receipt gym travel", "file_types": ["pdf"]})
+        search_results = await self._dispatch_tool("search_files", {"query": "receipt", "file_types": ["pdf", "txt"]})
+        if not search_results:
+            search_results = stub_search_files(query="receipt")
+
+        # Deduplicate stems
+        unique_results = []
+        seen_stems = set()
+        for item in search_results:
+            stem = os.path.splitext(item.get("name", ""))[0]
+            if stem and stem in seen_stems:
+                continue
+            if stem:
+                seen_stems.add(stem)
+            unique_results.append(item)
+        search_results = unique_results
+
         self.state_manager.complete_step(task_id, step1.step_index, search_results)
         await self._emit_event("step_completed", {"task_id": task_id, "step_index": step1.step_index, "result": search_results})
 

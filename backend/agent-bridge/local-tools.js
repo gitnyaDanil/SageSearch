@@ -59,22 +59,30 @@ function localSearchFiles(params = {}, searchIndex) {
     ? file_types.map((ft) => (ft.startsWith('.') ? ft.toLowerCase() : `.${ft.toLowerCase()}`))
     : [];
 
-  const keywords = query
+  const rawKeywords = query
     .split(/\s+/)
-    .map((k) => k.trim())
+    .map((k) => k.trim().toLowerCase())
     .filter((k) => k.length > 1);
 
   if (searchIndex && typeof searchIndex.search === 'function') {
+    // If searching broad categories like 'receipt' / 'invoice', search by primary category
+    const searchKeywords = rawKeywords.includes('receipt') || rawKeywords.includes('receipts')
+      ? ['receipt']
+      : rawKeywords.includes('invoice') || rawKeywords.includes('invoices')
+      ? ['invoice']
+      : rawKeywords;
+
     const rows = searchIndex.search({
-      filename_keywords: keywords,
+      filename_keywords: searchKeywords.length ? searchKeywords : undefined,
       extensions: extensions.length ? extensions : undefined,
       date_after,
       date_before,
+      raw_query: query,
       limit: max_results,
     });
 
     return rows.map((r) => ({
-      path: r.full_path,
+      path: r.path || r.full_path,
       name: r.name,
       extension: r.extension,
       size_bytes: r.size_bytes,
