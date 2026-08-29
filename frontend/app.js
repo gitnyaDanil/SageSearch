@@ -917,7 +917,7 @@ function renderAgentTaskState(task) {
         <p>${escHtml(task.final_summary || 'Successfully generated artifact.')}</p>
         ${artifact ? `
           <button class="artifact-action-btn" id="open-artifact-btn" type="button">
-            <i data-lucide="file-spreadsheet"></i>
+            <i data-lucide="folder-open"></i>
             <span>${escHtml(artifact.filename)} (${artifact.byte_count} bytes) &middot; Show in Explorer</span>
           </button>
         ` : ''}
@@ -927,21 +927,39 @@ function renderAgentTaskState(task) {
 
     const artifactPath = artifact?.saved_path || artifact?.path;
     if (artifactPath) {
-      document.getElementById('open-artifact-btn')?.addEventListener('click', async () => {
-        try {
-          const res = await fetch(`${API}/open`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: artifactPath, mode: 'explorer' })
-          });
-          const result = await res.json();
-          if (!result.success && result.error) {
-            console.warn('Explorer notice:', result.error);
+      const btn = document.getElementById('open-artifact-btn');
+      if (btn) {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const originalHTML = btn.innerHTML;
+          btn.innerHTML = '<i data-lucide="loader"></i> <span>Opening Explorer…</span>';
+          lucide.createIcons({ nodes: [btn] });
+
+          try {
+            const res = await fetch(`${API}/open`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: artifactPath, mode: 'explorer' })
+            });
+            const result = await res.json();
+            if (result.success) {
+              btn.innerHTML = '<i data-lucide="check"></i> <span>Opened in Explorer</span>';
+            } else {
+              btn.innerHTML = `<i data-lucide="alert-circle"></i> <span>${escHtml(result.error || 'Could not open')}</span>`;
+            }
+            lucide.createIcons({ nodes: [btn] });
+            setTimeout(() => {
+              btn.innerHTML = originalHTML;
+              lucide.createIcons({ nodes: [btn] });
+            }, 3000);
+          } catch (e) {
+            console.error('Error opening artifact in Explorer:', e);
+            btn.innerHTML = originalHTML;
+            lucide.createIcons({ nodes: [btn] });
           }
-        } catch (e) {
-          console.error('Error opening artifact:', e);
-        }
-      });
+        });
+      }
     }
   }
 }
