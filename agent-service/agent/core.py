@@ -18,6 +18,15 @@ from .extractor import StructuredFieldExtractor
 from .artifacts import ArtifactBuilder
 from .state import TaskStateManager, TaskState
 
+
+def artifact_creation_error(result: Any) -> Optional[str]:
+    """Return an error when a tool response does not prove local creation."""
+    if isinstance(result, dict) and result.get("status") == "created" and result.get("saved_path"):
+        return None
+    if isinstance(result, dict):
+        return result.get("error") or "The artifact tool did not confirm that a file was created."
+    return "The artifact tool returned an invalid creation response."
+
 try:
     from google import genai
     from google.genai import types
@@ -125,7 +134,7 @@ class SageSearchAgent:
         if self.mock_mode or not self.client:
             return await self._execute_mock_pipeline_async(state, auto_approve=auto_approve)
         else:
-            return self._execute_live_pipeline(state, auto_approve=auto_approve)
+            return await self._execute_live_pipeline_async(state, auto_approve=auto_approve)
 
     def _execute_mock_pipeline(self, state: TaskState, auto_approve: bool = False) -> TaskState:
         """Deterministic mock execution for Day 3 offline development."""
@@ -338,6 +347,14 @@ class SageSearchAgent:
             "create_artifact",
             {"filename": filename, "content_type": "text/csv", "data": csv_content}
         )
+        artifact_error = artifact_creation_error(artifact_res)
+        if artifact_error:
+            self.state_manager.fail_step(task_id, step4.step_index, artifact_res)
+            state.status = "failed"
+            state.error = artifact_error
+            state.final_summary = f"Could not create {filename}: {artifact_error}"
+            self.state_manager.save_task(state)
+            return state
         self.state_manager.complete_step(task_id, step4.step_index, artifact_res)
 
         state.artifacts.append(artifact_res)
@@ -378,6 +395,15 @@ class SageSearchAgent:
             "create_artifact",
             {"filename": filename, "content_type": "text/csv", "data": csv_content}
         )
+        artifact_error = artifact_creation_error(artifact_res)
+        if artifact_error:
+            self.state_manager.fail_step(task_id, step4.step_index, artifact_res)
+            state.status = "failed"
+            state.error = artifact_error
+            state.final_summary = f"Could not create {filename}: {artifact_error}"
+            self.state_manager.save_task(state)
+            await self._emit_event("task_failed", {"task_id": task_id, "state": state.model_dump()})
+            return state
         self.state_manager.complete_step(task_id, step4.step_index, artifact_res)
 
         state.artifacts.append(artifact_res)
@@ -457,3 +483,90 @@ class SageSearchAgent:
             print(f"[SageSearchAgent] Live execution error: {e}")
             self.state_manager.update_status(task_id, "failed", error=str(e))
             return self.state_manager.get_task(task_id)
+
+    async def _execute_live_pipeline_async(self, state: TaskState, auto_approve: bool = False) -> TaskState:
+        """Async live Gemini tool calling with WebSocket event emission."""
+        task_id = state.task_id
+        try:
+            tools = [types.Tool(function_declarations=[
+                types.FunctionDeclaration(
+                    name=decl["name"],
+                    description=decl["description"],
+                    parameters=decl["parameters"]
+                ) for decl in TOOL_DECLARATIONS
+            ])]
+
+            config = types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                tools=tools,
+                temperature=0.2
+            )
+
+            chat = self.client.chats.create(model=self.model_name, config=config)
+            response = chat.send_message(f"Goal: {state.goal}")
+
+            max_turns = 10
+            turn = 0
+            while turn < max_turns:
+                turn += 1
+                if not response.function_calls:
+                    state.final_summary = response.text
+                    state.status = "completed"
+                    self.state_manager.save_task(state)
+                    await self._emit_event("task_completed", {"task_id": task_id, "state": state.model_dump()})
+                    break
+
+                for call in response.function_calls:
+                    tool_name = call.name
+                    tool_args = dict(call.args)
+
+                    step = self.state_manager.add_step(
+                        task_id,
+                        title=f"Execute tool: {tool_name}",
+                        tool_name=tool_name,
+                        tool_args=tool_args
+                    )
+                    await self._emit_event("step_started", {"task_id": task_id, "step": step.model_dump()})
+
+                    tool_result = await self._dispatch_tool(tool_name, tool_args)
+                    self.state_manager.complete_step(task_id, step.step_index, tool_result)
+                    await self._emit_event("step_completed", {"task_id": task_id, "step_index": step.step_index, "result": tool_result})
+
+                    if tool_name == "ask_user" and not auto_approve:
+                        state.approval_prompt = tool_args.get("question")
+                        state.preview_data = tool_args.get("preview_data")
+                        state.status = "waiting_approval"
+                        self.state_manager.save_task(state)
+                        await self._emit_event("approval_request", {
+                            "task_id": task_id,
+                            "prompt": state.approval_prompt,
+                            "preview_data": state.preview_data
+                        })
+                        return state
+
+                    if tool_name == "create_artifact":
+                        artifact_error = artifact_creation_error(tool_result)
+                        if artifact_error:
+                            state.status = "failed"
+                            state.error = artifact_error
+                            state.final_summary = f"Artifact creation failed: {artifact_error}"
+                            self.state_manager.save_task(state)
+                            await self._emit_event("task_failed", {"task_id": task_id, "state": state.model_dump()})
+                            return state
+                        state.artifacts.append(tool_result)
+
+                    response = chat.send_message(
+                        types.Part.from_function_response(
+                            name=tool_name,
+                            response={"result": tool_result}
+                        )
+                    )
+
+            return self.state_manager.get_task(task_id)
+
+        except Exception as e:
+            print(f"[SageSearchAgent] Async live execution error: {e}")
+            self.state_manager.update_status(task_id, "failed", error=str(e))
+            await self._emit_event("task_failed", {"task_id": task_id, "error": str(e)})
+            return self.state_manager.get_task(task_id)
+

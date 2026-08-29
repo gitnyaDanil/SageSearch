@@ -899,15 +899,32 @@ function renderAgentTaskState(task) {
 
       document.getElementById('approve-task-btn')?.addEventListener('click', () => handleTaskApproval(task.task_id, true));
       document.getElementById('cancel-task-btn')?.addEventListener('click', () => handleTaskApproval(task.task_id, false));
-    } else if (task.status === 'completed' || task.status === 'canceled') {
+    } else if (task.status === 'completed' || task.status === 'canceled' || task.status === 'failed') {
       approvalContainer.innerHTML = '';
     }
   }
 
-  // Render Artifact if completed
+  // Render Artifact only when the agent has a verified local creation result.
   const artifactContainer = document.getElementById('agent-artifact-container');
-  if (artifactContainer && task.status === 'completed') {
+  if (artifactContainer && (task.status === 'completed' || task.status === 'failed')) {
     const artifact = task.artifacts && task.artifacts[0] ? task.artifacts[0] : null;
+    const artifactPath = artifact?.saved_path || artifact?.path;
+    const artifactCreated = task.status === 'completed' && artifact?.status === 'created' && artifactPath;
+
+    if (!artifactCreated) {
+      artifactContainer.innerHTML = `
+        <div class="artifact-success-card" style="border-color: #f0a0a0; background: #fff6f6;">
+          <div class="artifact-success-header" style="color: #c0392b;">
+            <i data-lucide="alert-circle"></i>
+            <span>Task could not be completed</span>
+          </div>
+          <p>${escHtml(task.error || task.final_summary || 'The output file was not created locally.')}</p>
+        </div>
+      `;
+      lucide.createIcons({ nodes: [artifactContainer] });
+      return;
+    }
+
     artifactContainer.innerHTML = `
       <div class="artifact-success-card">
         <div class="artifact-success-header">
@@ -925,11 +942,9 @@ function renderAgentTaskState(task) {
     `;
     lucide.createIcons({ nodes: [artifactContainer] });
 
-    const artifactPath = artifact?.saved_path || artifact?.path;
-    if (artifactPath) {
-      const btn = document.getElementById('open-artifact-btn');
-      if (btn) {
-        btn.addEventListener('click', async (e) => {
+    const btn = document.getElementById('open-artifact-btn');
+    if (btn) {
+      btn.addEventListener('click', async (e) => {
           e.preventDefault();
           e.stopPropagation();
           const originalHTML = btn.innerHTML;
@@ -955,11 +970,14 @@ function renderAgentTaskState(task) {
             }, 3000);
           } catch (e) {
             console.error('Error opening artifact in Explorer:', e);
-            btn.innerHTML = originalHTML;
+            btn.innerHTML = '<i data-lucide="alert-circle"></i> <span>Could not open Explorer</span>';
             lucide.createIcons({ nodes: [btn] });
+            setTimeout(() => {
+              btn.innerHTML = originalHTML;
+              lucide.createIcons({ nodes: [btn] });
+            }, 3000);
           }
-        });
-      }
+      });
     }
   }
 }

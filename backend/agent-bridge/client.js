@@ -142,11 +142,16 @@ class AgentBridgeClient extends EventEmitter {
   }
 
   async startTask(goal, autoApprove = false) {
-    const res = await fetch(`${this.agentHttpUrl}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal, auto_approve: autoApprove }),
-    });
+    let res;
+    try {
+      res = await fetch(`${this.agentHttpUrl}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal, auto_approve: autoApprove }),
+      });
+    } catch (error) {
+      throw new Error(`Agent service unavailable at ${this.agentHttpUrl}. Start the SageSearch Agent Brain first. (${error.message})`);
+    }
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Failed to start task: ${err}`);
@@ -155,11 +160,16 @@ class AgentBridgeClient extends EventEmitter {
   }
 
   async respondToTask(taskId, approved, feedback = null) {
-    const res = await fetch(`${this.agentHttpUrl}/tasks/${taskId}/respond`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved, feedback }),
-    });
+    let res;
+    try {
+      res = await fetch(`${this.agentHttpUrl}/tasks/${taskId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved, feedback }),
+      });
+    } catch (error) {
+      throw new Error(`Agent service unavailable at ${this.agentHttpUrl}. Start the SageSearch Agent Brain first. (${error.message})`);
+    }
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Failed to respond to task: ${err}`);

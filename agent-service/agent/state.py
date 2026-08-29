@@ -129,6 +129,18 @@ class TaskStateManager:
                 break
         self.save_task(state)
 
+    def fail_step(self, task_id: str, step_index: int, result: Any) -> None:
+        state = self.get_task(task_id)
+        if not state:
+            return
+
+        for step in state.steps:
+            if step.step_index == step_index:
+                step.status = "failed"
+                step.tool_result = result
+                break
+        self.save_task(state)
+
     def get_user_memory(self, user_id: str = "default_user") -> Dict[str, Any]:
         """Retrieves persistent user preferences and workflow memory."""
         if self.use_firestore and self.db:

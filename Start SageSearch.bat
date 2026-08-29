@@ -16,14 +16,26 @@ where node >nul 2>&1
 if errorlevel 1 goto node_missing
 
 REM Start Python Agent Service in the background
-where.exe python >nul 2>&1
+python --version >nul 2>&1
 if errorlevel 1 goto python_missing
 echo  Starting SageSearch Agent Service (Port 8080)...
 start "SageSearch Agent Brain" /min /D "%ROOT%agent-service" python -m uvicorn api.server:app --host 127.0.0.1 --port 8080
-goto backend_check
+set "AGENT_WAIT=0"
+
+:wait_for_agent
+powershell.exe -NoProfile -Command "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8080/health' -TimeoutSec 1 | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+if not errorlevel 1 goto backend_check
+set /a AGENT_WAIT+=1 >nul
+if %AGENT_WAIT% geq 30 goto agent_not_ready
+timeout /t 1 /nobreak >nul
+goto wait_for_agent
 
 :python_missing
 echo  [WARNING] Python not found. Agent Service will not start locally.
+goto backend_check
+
+:agent_not_ready
+echo  [WARNING] Agent Service did not become ready within 30 seconds.
 
 REM Check if backend dependencies are installed
 :backend_check

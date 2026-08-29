@@ -1,10 +1,12 @@
-const { exec, spawn } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 /**
- * Open Windows Explorer with the file highlighted/selected.
- * Uses PowerShell Start-Process / explorer.exe /select,"path" command.
+ * Open the file's containing folder in Windows Explorer.
+ * Opening the folder is more reliable than explorer.exe /select,"path"
+ * because Explorer may hand off /select requests to an existing shell
+ * process without showing a visible window.
  * @param {string} filePath - Absolute path to the file
  */
 function openInExplorer(filePath) {
@@ -18,23 +20,25 @@ function openInExplorer(filePath) {
       return resolve({ success: false, error: 'File not found at path: ' + normalized });
     }
 
-    const psCmd = `powershell -NoProfile -Command "Start-Process explorer.exe -ArgumentList '/select,\\"${normalized}\\"'"`;
-
-    exec(psCmd, (error) => {
-      if (error) {
-        try {
-          const child = spawn('explorer.exe', [`/select,${normalized}`], {
-            detached: true,
-            stdio: 'ignore',
-          });
-          child.unref();
-          return resolve({ success: true, message: `Opened Explorer for: ${path.basename(normalized)}` });
-        } catch (spawnErr) {
-          return resolve({ success: false, error: spawnErr.message });
-        }
-      }
-      resolve({ success: true, message: `Opened Explorer for: ${path.basename(normalized)}` });
-    });
+    try {
+      const containingFolder = path.dirname(normalized);
+      const child = spawn('explorer.exe', [containingFolder], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.once('error', (error) => resolve({ success: false, error: error.message }));
+      child.once('spawn', () => {
+        child.unref();
+        resolve({
+          success: true,
+          message: `Opened Explorer folder: ${containingFolder}`,
+          path: normalized,
+        });
+      });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
   });
 }
 
@@ -53,21 +57,20 @@ function openFile(filePath) {
       return resolve({ success: false, error: 'File not found at path: ' + normalized });
     }
 
-    exec(`powershell -NoProfile -Command "Start-Process -FilePath \\"${normalized}\\""`, (error) => {
-      if (error) {
-        try {
-          const child = spawn('cmd.exe', ['/c', 'start', '""', normalized], {
-            detached: true,
-            stdio: 'ignore',
-          });
-          child.unref();
-          return resolve({ success: true, message: `Opened: ${path.basename(normalized)}` });
-        } catch (spawnErr) {
-          return resolve({ success: false, error: spawnErr.message });
-        }
-      }
-      resolve({ success: true, message: `Opened: ${path.basename(normalized)}` });
-    });
+    try {
+      const child = spawn('cmd.exe', ['/c', 'start', '""', normalized], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.once('error', (error) => resolve({ success: false, error: error.message }));
+      child.once('spawn', () => {
+        child.unref();
+        resolve({ success: true, message: `Opened: ${path.basename(normalized)}` });
+      });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
   });
 }
 

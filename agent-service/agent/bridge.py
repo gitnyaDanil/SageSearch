@@ -70,6 +70,11 @@ class WebSocketBridgeManager:
         """Dispatches a tool call to connected desktop client or falls back to stubs."""
         if not self.is_client_connected:
             print(f"[WebSocketBridge] No desktop client connected. Executing local stub for '{tool_name}'.")
+            if tool_name == "create_artifact":
+                return {
+                    "status": "error",
+                    "error": "Desktop bridge is not connected; the artifact was not created locally."
+                }
             return self._fallback_stub(tool_name, params)
 
         call_id = str(uuid.uuid4())
@@ -93,10 +98,20 @@ class WebSocketBridgeManager:
         except asyncio.TimeoutError:
             self.pending_tool_calls.pop(call_id, None)
             print(f"[WebSocketBridge] Tool call '{tool_name}' timed out after {timeout}s. Falling back to stub.")
+            if tool_name == "create_artifact":
+                return {
+                    "status": "error",
+                    "error": "Desktop bridge timed out; the artifact was not created locally."
+                }
             return self._fallback_stub(tool_name, params)
         except Exception as e:
             self.pending_tool_calls.pop(call_id, None)
             print(f"[WebSocketBridge] Tool call '{tool_name}' failed with error ({e}). Falling back to stub.")
+            if tool_name == "create_artifact":
+                return {
+                    "status": "error",
+                    "error": f"Desktop bridge failed; the artifact was not created locally: {e}"
+                }
             return self._fallback_stub(tool_name, params)
 
     async def broadcast_event(self, event_type: str, data: Dict[str, Any]) -> None:

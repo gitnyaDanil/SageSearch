@@ -14,7 +14,7 @@ def test_health_endpoint():
     assert data["service"] == "sagesearch-agent"
 
 
-def test_create_and_poll_task():
+def test_create_and_poll_task_reports_missing_desktop_artifact_bridge():
     # 1. Create task
     payload = {
         "goal": "Find all gym and travel receipts from last month and create expense report CSV",
@@ -35,10 +35,10 @@ def test_create_and_poll_task():
     # 3. Respond with approval
     respond_res = client.post(f"/tasks/{task_id}/respond", json={"approved": True})
     assert respond_res.status_code == 200
-    completed_data = respond_res.json()
-    assert completed_data["status"] == "completed"
-    assert len(completed_data["artifacts"]) == 1
-    assert completed_data["artifacts"][0]["filename"] == "expense_report_july_2026.csv"
+    final_data = respond_res.json()
+    assert final_data["status"] == "failed"
+    assert final_data["artifacts"] == []
+    assert "not created locally" in final_data["error"]
 
 
 def test_get_nonexistent_task():
